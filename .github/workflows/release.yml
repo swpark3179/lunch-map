@@ -292,9 +292,38 @@ jobs:
           EOF
           cat ios/ExportOptions.plist
 
+      - name: Xcode 수동 코드 서명 설정
+        shell: bash
+        env:
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          PROFILE_NAME: ${{ steps.profile.outputs.name }}
+        run: |
+          set -euo pipefail
+          PBXPROJ=ios/Runner.xcodeproj/project.pbxproj
+
+          # CODE_SIGN_STYLE을 Automatic → Manual로 변경
+          sed -i '' 's/CODE_SIGN_STYLE = Automatic;/CODE_SIGN_STYLE = Manual;/g' "$PBXPROJ"
+
+          # DEVELOPMENT_TEAM 설정
+          sed -i '' "s/DEVELOPMENT_TEAM = \"\";/DEVELOPMENT_TEAM = \"${APPLE_TEAM_ID}\";/g" "$PBXPROJ"
+          sed -i '' "s/DEVELOPMENT_TEAM = [A-Z0-9]*;/DEVELOPMENT_TEAM = \"${APPLE_TEAM_ID}\";/g" "$PBXPROJ"
+
+          # PROVISIONING_PROFILE_SPECIFIER 설정
+          sed -i '' "s/PROVISIONING_PROFILE_SPECIFIER = \"\";/PROVISIONING_PROFILE_SPECIFIER = \"${PROFILE_NAME}\";/g" "$PBXPROJ"
+
+          # CODE_SIGN_IDENTITY를 배포용(distribution)으로 설정
+          sed -i '' 's/CODE_SIGN_IDENTITY = "iPhone Developer";/CODE_SIGN_IDENTITY = "iPhone Distribution";/g' "$PBXPROJ"
+          sed -i '' 's/CODE_SIGN_IDENTITY = "";/CODE_SIGN_IDENTITY = "iPhone Distribution";/g' "$PBXPROJ"
+
+          echo "✅ 수동 서명 설정 완료"
+          grep -E 'CODE_SIGN_STYLE|CODE_SIGN_IDENTITY|DEVELOPMENT_TEAM|PROVISIONING_PROFILE_SPECIFIER' "$PBXPROJ" | sort -u
+
       - run: flutter pub get
 
       - name: flutter build ipa
+        shell: bash
+        env:
+          PROFILE_UUID: ${{ steps.profile.outputs.uuid }}
         run: |
           flutter build ipa --release --export-options-plist=ios/ExportOptions.plist
 
