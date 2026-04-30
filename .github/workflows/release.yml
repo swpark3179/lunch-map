@@ -112,6 +112,60 @@ jobs:
           sed -i 's/com\.shi\.lunch_map/com.shi.lunchmap/g' android/app/src/main/AndroidManifest.xml || true
           grep -E 'applicationId|namespace' android/app/build.gradle* || true
 
+      - name: build.gradle 의 compileSdk / ndkVersion / minSdk 패치
+        shell: bash
+        run: |
+          # flutter_naver_map 등 플러그인 요구사항을 충족시키기 위해 SDK/NDK 버전을 상향
+          # - compileSdk 35 → 36 (flutter_naver_map 요구)
+          # - ndkVersion 26.x → 27.0.12077973 (다수 플러그인 요구)
+          # - minSdk 21 → 23 (flutter_naver_map 요구)
+          python3 - <<'PY'
+          import os, re
+
+          for path in ('android/app/build.gradle.kts', 'android/app/build.gradle'):
+              if not os.path.exists(path):
+                  continue
+              with open(path, 'r', encoding='utf-8') as f:
+                  content = f.read()
+              is_kts = path.endswith('.kts')
+
+              def patch(content, key, value, *, quoted=False, kts=is_kts):
+                  val = f'"{value}"' if quoted else str(value)
+                  if kts:
+                      pattern = rf'{key}\s*=\s*[^\n]+'
+                      replacement = f'{key} = {val}'
+                  else:
+                      pattern = rf'{key}\s+[^\n]+'
+                      replacement = f'{key} {val}'
+                  new_content, n = re.subn(pattern, replacement, content, count=1)
+                  return new_content, n
+
+              content, _ = patch(content, 'compileSdk' if is_kts else 'compileSdkVersion', 36)
+              content, n = patch(content, 'ndkVersion', '27.0.12077973', quoted=True)
+              if n == 0:
+                  # ndkVersion 라인이 없으면 compileSdk 다음 줄에 삽입
+                  if is_kts:
+                      content = re.sub(
+                          r'(compileSdk\s*=\s*[^\n]+\n)',
+                          r'\1    ndkVersion = "27.0.12077973"\n',
+                          content,
+                          count=1,
+                      )
+                  else:
+                      content = re.sub(
+                          r'(compileSdkVersion\s+[^\n]+\n)',
+                          r'\1    ndkVersion "27.0.12077973"\n',
+                          content,
+                          count=1,
+                      )
+              content, _ = patch(content, 'minSdk' if is_kts else 'minSdkVersion', 23)
+
+              with open(path, 'w', encoding='utf-8') as f:
+                  f.write(content)
+              print(f'✅ {path} 패치 완료')
+          PY
+          grep -E 'compileSdk|ndkVersion|minSdk' android/app/build.gradle* || true
+
       - name: AndroidManifest.xml 에 Naver Client ID 주입
         shell: bash
         env:
