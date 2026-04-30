@@ -305,43 +305,43 @@ jobs:
           grep -n 'CODE_SIGN\|DEVELOPMENT_TEAM\|PROVISIONING_PROFILE' "$PBXPROJ" | head -30 || true
 
           python3 << 'PYEOF'
-import re, os, sys
+          import re, os, sys
 
-pbxproj_path = 'ios/Runner.xcodeproj/project.pbxproj'
-team_id = os.environ['APPLE_TEAM_ID']
-profile_name = os.environ['PROFILE_NAME']
+          pbxproj_path = 'ios/Runner.xcodeproj/project.pbxproj'
+          team_id = os.environ['APPLE_TEAM_ID']
+          profile_name = os.environ['PROFILE_NAME']
 
-with open(pbxproj_path, 'r') as f:
-    content = f.read()
+          with open(pbxproj_path, 'r') as f:
+              content = f.read()
 
-# CODE_SIGN_STYLE: 기존 값 교체 (공백 변형 모두 대응)
-original = content
-content = re.sub(r'CODE_SIGN_STYLE\s*=\s*\w+\s*;', 'CODE_SIGN_STYLE = Manual;', content)
-if content == original:
-    # 설정 자체가 없으면 buildSettings 블록 안에 삽입
-    print("WARNING: CODE_SIGN_STYLE not found, injecting into buildSettings blocks")
-    content = re.sub(
-        r'(buildSettings\s*=\s*\{)',
-        r'\1\n\t\t\t\tCODE_SIGN_STYLE = Manual;',
-        content
-    )
+          # CODE_SIGN_STYLE: 기존 값 교체 (공백 변형 모두 대응)
+          original = content
+          content = re.sub(r'CODE_SIGN_STYLE\s*=\s*\w+\s*;', 'CODE_SIGN_STYLE = Manual;', content)
+          if content == original:
+              # 설정 자체가 없으면 buildSettings 블록 안에 삽입
+              print("WARNING: CODE_SIGN_STYLE not found, injecting into buildSettings blocks")
+              content = re.sub(
+                  r'(buildSettings\s*=\s*\{)',
+                  r'\1\n\t\t\t\tCODE_SIGN_STYLE = Manual;',
+                  content
+              )
 
-# DEVELOPMENT_TEAM: 빈 문자열 및 기존 값 모두 교체
-content = re.sub(r'DEVELOPMENT_TEAM\s*=\s*"[^"]*"\s*;', f'DEVELOPMENT_TEAM = "{team_id}";', content)
-content = re.sub(r'DEVELOPMENT_TEAM\s*=\s*[A-Z0-9]+\s*;', f'DEVELOPMENT_TEAM = "{team_id}";', content)
+          # DEVELOPMENT_TEAM: 빈 문자열 및 기존 값 모두 교체
+          content = re.sub(r'DEVELOPMENT_TEAM\s*=\s*"[^"]*"\s*;', f'DEVELOPMENT_TEAM = "{team_id}";', content)
+          content = re.sub(r'DEVELOPMENT_TEAM\s*=\s*[A-Z0-9]+\s*;', f'DEVELOPMENT_TEAM = "{team_id}";', content)
 
-# CODE_SIGN_IDENTITY: 배포용으로 교체
-content = re.sub(r'CODE_SIGN_IDENTITY\s*=\s*"[^"]*"\s*;', 'CODE_SIGN_IDENTITY = "iPhone Distribution";', content)
+          # CODE_SIGN_IDENTITY: 배포용으로 교체
+          content = re.sub(r'CODE_SIGN_IDENTITY\s*=\s*"[^"]*"\s*;', 'CODE_SIGN_IDENTITY = "iPhone Distribution";', content)
 
-# PROVISIONING_PROFILE_SPECIFIER: 빈 값을 프로파일 이름으로 교체
-content = re.sub(r'PROVISIONING_PROFILE_SPECIFIER\s*=\s*"[^"]*"\s*;',
-                 f'PROVISIONING_PROFILE_SPECIFIER = "{profile_name}";', content)
+          # PROVISIONING_PROFILE_SPECIFIER: 빈 값을 프로파일 이름으로 교체
+          content = re.sub(r'PROVISIONING_PROFILE_SPECIFIER\s*=\s*"[^"]*"\s*;',
+                           f'PROVISIONING_PROFILE_SPECIFIER = "{profile_name}";', content)
 
-with open(pbxproj_path, 'w') as f:
-    f.write(content)
+          with open(pbxproj_path, 'w') as f:
+              f.write(content)
 
-print(f"✅ pbxproj 수정 완료 — TEAM: {team_id}, PROFILE: {profile_name}")
-PYEOF
+          print(f"✅ pbxproj 수정 완료 — TEAM: {team_id}, PROFILE: {profile_name}")
+          PYEOF
 
           echo "=== 수정 후 서명 관련 설정 ==="
           grep -n 'CODE_SIGN\|DEVELOPMENT_TEAM\|PROVISIONING_PROFILE' "$PBXPROJ" | head -30 || true
