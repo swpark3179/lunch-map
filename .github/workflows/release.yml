@@ -19,7 +19,7 @@ permissions:
 env:
   FLUTTER_VERSION: '3.29.0'
   APP_BUNDLE_ID: 'com.shi.lunchmap'
-  IOS_EXPORT_METHOD: 'ad-hoc'  # 필요 시 app-store / development / enterprise 로 변경
+  IOS_EXPORT_METHOD: 'app-store'  # 필요 시 ad-hoc / development / enterprise 로 변경
 
 jobs:
   prepare:
