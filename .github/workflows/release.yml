@@ -1,0 +1,334 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version_bump:
+        description: '버전 증가 유형 (Semantic Versioning)'
+        required: true
+        default: 'patch'
+        type: choice
+        options:
+          - major
+          - minor
+          - patch
+
+permissions:
+  contents: write
+
+env:
+  FLUTTER_VERSION: '3.29.0'
+
+jobs:
+  prepare:
+    name: 버전 계산
+    runs-on: ubuntu-latest
+    outputs:
+      new_version: ${{ steps.version.outputs.new_version }}
+      new_tag: ${{ steps.version.outputs.new_tag }}
+      previous_tag: ${{ steps.version.outputs.previous_tag }}
+    steps:
+      - name: 체크아웃 (전체 히스토리)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 다음 버전 계산
+        id: version
+        shell: bash
+        run: |
+          set -euo pipefail
+          PREV=$(git tag --list 'v*' --sort=-v:refname | head -n1 || true)
+          if [ -z "$PREV" ]; then
+            CURRENT="0.0.0"
+            echo "기존 태그 없음 → 0.0.0 부터 시작"
+          else
+            CURRENT="${PREV#v}"
+            echo "이전 태그: $PREV"
+          fi
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT"
+          case "${{ inputs.version_bump }}" in
+            major) MAJOR=$((MAJOR+1)); MINOR=0; PATCH=0 ;;
+            minor) MINOR=$((MINOR+1)); PATCH=0 ;;
+            patch) PATCH=$((PATCH+1)) ;;
+          esac
+          NEW_VERSION="${MAJOR}.${MINOR}.${PATCH}"
+          NEW_TAG="v${NEW_VERSION}"
+          echo "new_version=${NEW_VERSION}" >> "$GITHUB_OUTPUT"
+          echo "new_tag=${NEW_TAG}" >> "$GITHUB_OUTPUT"
+          echo "previous_tag=${PREV}" >> "$GITHUB_OUTPUT"
+          echo "🔖 새 버전: ${NEW_TAG}"
+
+  build-android:
+    name: Android APK 빌드
+    needs: prepare
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: pubspec.yaml 버전 갱신
+        shell: bash
+        run: |
+          NEW_VERSION="${{ needs.prepare.outputs.new_version }}"
+          BUILD_NUMBER="${{ github.run_number }}"
+          sed -i "s/^version: .*/version: ${NEW_VERSION}+${BUILD_NUMBER}/" pubspec.yaml
+          grep '^version:' pubspec.yaml
+
+      - name: .env 파일 생성
+        shell: bash
+        run: |
+          cat > .env <<EOF
+          SUPABASE_URL=${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }}
+          NAVER_MAP_CLIENT_ID=${{ secrets.NAVER_MAP_CLIENT_ID }}
+          EOF
+
+      - name: 플랫폼 폴더 보장 (없으면 생성)
+        shell: bash
+        run: |
+          flutter create --platforms=android --org com.example .
+
+      - name: AndroidManifest.xml 에 Naver Client ID 주입
+        shell: bash
+        env:
+          NAVER_MAP_CLIENT_ID: ${{ secrets.NAVER_MAP_CLIENT_ID }}
+        run: |
+          MANIFEST=android/app/src/main/AndroidManifest.xml
+          if ! grep -q 'com.naver.maps.map.CLIENT_ID' "$MANIFEST"; then
+            python3 - <<'PY'
+          import os, re
+          path = 'android/app/src/main/AndroidManifest.xml'
+          cid = os.environ['NAVER_MAP_CLIENT_ID']
+          with open(path, 'r', encoding='utf-8') as f:
+              content = f.read()
+          meta = (
+              f'        <meta-data\n'
+              f'            android:name="com.naver.maps.map.CLIENT_ID"\n'
+              f'            android:value="{cid}" />\n'
+          )
+          content = re.sub(r'(<application[^>]*>)', r'\1\n' + meta, content, count=1)
+          with open(path, 'w', encoding='utf-8') as f:
+              f.write(content)
+          PY
+          else
+            sed -i "s|android:value=\"[^\"]*\"\\(\\s*/>\\)\\(\\s*<!-- naver -->\\)\\?|android:value=\"${NAVER_MAP_CLIENT_ID}\"\\1|" "$MANIFEST" || true
+          fi
+
+      - name: 인터넷 권한 보장
+        shell: bash
+        run: |
+          MANIFEST=android/app/src/main/AndroidManifest.xml
+          if ! grep -q 'android.permission.INTERNET' "$MANIFEST"; then
+            sed -i 's|<manifest |<manifest |; 0,/<application/{s|<application|<uses-permission android:name="android.permission.INTERNET" />\n    <application|}' "$MANIFEST"
+          fi
+
+      - run: flutter pub get
+
+      - run: flutter build apk --release
+
+      - name: 산출물 이름 변경
+        shell: bash
+        run: |
+          mv build/app/outputs/flutter-apk/app-release.apk \
+             build/app/outputs/flutter-apk/lunch-map-${{ needs.prepare.outputs.new_version }}-android.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android-apk
+          path: build/app/outputs/flutter-apk/lunch-map-*-android.apk
+          if-no-files-found: error
+
+  build-ios:
+    name: iOS 빌드 (no-codesign)
+    needs: prepare
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: pubspec.yaml 버전 갱신
+        shell: bash
+        run: |
+          NEW_VERSION="${{ needs.prepare.outputs.new_version }}"
+          BUILD_NUMBER="${{ github.run_number }}"
+          sed -i '' "s/^version: .*/version: ${NEW_VERSION}+${BUILD_NUMBER}/" pubspec.yaml
+          grep '^version:' pubspec.yaml
+
+      - name: .env 파일 생성
+        shell: bash
+        run: |
+          cat > .env <<EOF
+          SUPABASE_URL=${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }}
+          NAVER_MAP_CLIENT_ID=${{ secrets.NAVER_MAP_CLIENT_ID }}
+          EOF
+
+      - name: 플랫폼 폴더 보장 (없으면 생성)
+        shell: bash
+        run: |
+          flutter create --platforms=ios --org com.example .
+
+      - name: Info.plist 에 Naver Client ID / 권한 주입
+        shell: bash
+        env:
+          NAVER_MAP_CLIENT_ID: ${{ secrets.NAVER_MAP_CLIENT_ID }}
+        run: |
+          PLIST=ios/Runner/Info.plist
+          /usr/libexec/PlistBuddy -c "Delete :NMFClientId" "$PLIST" 2>/dev/null || true
+          /usr/libexec/PlistBuddy -c "Add :NMFClientId string ${NAVER_MAP_CLIENT_ID}" "$PLIST"
+          /usr/libexec/PlistBuddy -c "Delete :NSLocationWhenInUseUsageDescription" "$PLIST" 2>/dev/null || true
+          /usr/libexec/PlistBuddy -c "Add :NSLocationWhenInUseUsageDescription string '현재 위치를 표시하기 위해 위치 권한이 필요합니다.'" "$PLIST"
+
+      - run: flutter pub get
+
+      - run: flutter build ios --release --no-codesign
+
+      - name: Runner.app 압축
+        shell: bash
+        run: |
+          cd build/ios/iphoneos
+          zip -r9 "lunch-map-${{ needs.prepare.outputs.new_version }}-ios.zip" Runner.app
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ios-app
+          path: build/ios/iphoneos/lunch-map-*-ios.zip
+          if-no-files-found: error
+
+  build-windows:
+    name: Windows EXE 빌드
+    needs: prepare
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: pubspec.yaml 버전 갱신
+        shell: pwsh
+        run: |
+          $newVersion = "${{ needs.prepare.outputs.new_version }}"
+          $buildNumber = "${{ github.run_number }}"
+          (Get-Content pubspec.yaml) -replace '^version: .*', "version: $newVersion+$buildNumber" | Set-Content pubspec.yaml
+          Select-String -Path pubspec.yaml -Pattern '^version:'
+
+      - name: .env 파일 생성
+        shell: pwsh
+        run: |
+          @"
+          SUPABASE_URL=${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }}
+          NAVER_MAP_CLIENT_ID=${{ secrets.NAVER_MAP_CLIENT_ID }}
+          "@ | Set-Content -Encoding UTF8 .env
+
+      - name: 플랫폼 폴더 보장 (없으면 생성)
+        shell: pwsh
+        run: flutter create --platforms=windows --org com.example .
+
+      - run: flutter pub get
+
+      - run: flutter build windows --release
+
+      - name: Release 폴더 압축
+        shell: pwsh
+        run: |
+          $version = "${{ needs.prepare.outputs.new_version }}"
+          $src = "build\windows\x64\runner\Release"
+          $dst = "lunch-map-$version-windows.zip"
+          Compress-Archive -Path "$src\*" -DestinationPath $dst -Force
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-build
+          path: lunch-map-*-windows.zip
+          if-no-files-found: error
+
+  release:
+    name: 릴리즈 생성
+    needs: [prepare, build-android, build-ios, build-windows]
+    runs-on: ubuntu-latest
+    steps:
+      - name: 체크아웃 (전체 히스토리)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 산출물 다운로드
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: 산출물 평탄화
+        shell: bash
+        run: |
+          mkdir -p release-files
+          find artifacts -type f \( -name '*.apk' -o -name '*.zip' \) -exec cp {} release-files/ \;
+          ls -lh release-files
+
+      - name: 변경 사항 본문 생성
+        id: changelog
+        shell: bash
+        run: |
+          set -euo pipefail
+          PREV="${{ needs.prepare.outputs.previous_tag }}"
+          NEW_TAG="${{ needs.prepare.outputs.new_tag }}"
+          {
+            echo "## 📦 산출물"
+            echo
+            echo "| 플랫폼 | 파일 |"
+            echo "| --- | --- |"
+            echo "| Android | \`lunch-map-${{ needs.prepare.outputs.new_version }}-android.apk\` |"
+            echo "| iOS | \`lunch-map-${{ needs.prepare.outputs.new_version }}-ios.zip\` (no-codesign Runner.app) |"
+            echo "| Windows | \`lunch-map-${{ needs.prepare.outputs.new_version }}-windows.zip\` |"
+            echo
+            echo "## 📝 변경 사항"
+            echo
+            if [ -z "$PREV" ]; then
+              echo "최초 릴리즈 — 전체 커밋:"
+              echo
+              git log --pretty=format:'- %s (%h) — @%an' >> /tmp/log.txt
+              cat /tmp/log.txt
+              echo
+            else
+              echo "[\`$PREV\` ... \`$NEW_TAG\`](${{ github.server_url }}/${{ github.repository }}/compare/${PREV}...${NEW_TAG}) 사이의 변경 사항:"
+              echo
+              git log "${PREV}..HEAD" --pretty=format:'- %s (%h) — @%an' >> /tmp/log.txt
+              cat /tmp/log.txt
+              echo
+            fi
+          } > release_body.md
+          echo "BODY_PATH=release_body.md" >> "$GITHUB_OUTPUT"
+
+      - name: GitHub Release 생성
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.prepare.outputs.new_tag }}
+          name: 🚀 lunch-map ${{ needs.prepare.outputs.new_tag }}
+          body_path: ${{ steps.changelog.outputs.BODY_PATH }}
+          generate_release_notes: true
+          draft: false
+          prerelease: false
+          files: |
+            release-files/*.apk
+            release-files/*.zip
+          fail_on_unmatched_files: true
