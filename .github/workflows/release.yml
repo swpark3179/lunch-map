@@ -19,7 +19,7 @@ permissions:
 env:
   FLUTTER_VERSION: '3.29.0'
   APP_BUNDLE_ID: 'com.shi.lunchmap'
-  IOS_EXPORT_METHOD: 'ad-hoc'  # 필요 시 app-store / development / enterprise 로 변경
+  IOS_EXPORT_METHOD: 'app-store'  # 필요 시 ad-hoc / development / enterprise 로 변경
 
 jobs:
   prepare:
@@ -400,9 +400,39 @@ jobs:
       - name: 산출물 이름 변경
         shell: bash
         run: |
+          set -euo pipefail
+
+          echo "=== build/ios 구조 ==="
+          ls -la build/ios/ 2>/dev/null || true
+
+          # flutter build ipa 가 export 단계에서 조용히 실패해
+          # build/ios/ipa 가 생성되지 않을 수 있으므로,
+          # 그런 경우 xcarchive 에서 직접 -exportArchive 를 수행한다.
+          if [ ! -d build/ios/ipa ] || [ -z "$(find build/ios/ipa -maxdepth 1 -name '*.ipa' -print -quit)" ]; then
+            echo "::warning::build/ios/ipa 에 IPA 가 없습니다. xcarchive 에서 직접 export 합니다."
+            ARCHIVE=$(find build/ios/archive -maxdepth 1 -name '*.xcarchive' | head -n1)
+            if [ -z "$ARCHIVE" ]; then
+              echo "::error::xcarchive 를 찾을 수 없습니다. flutter build ipa 가 archive 단계부터 실패했을 가능성이 큽니다."
+              find build -maxdepth 4 -type d 2>/dev/null || true
+              exit 1
+            fi
+
+            mkdir -p build/ios/ipa
+            xcodebuild -exportArchive \
+              -archivePath "$ARCHIVE" \
+              -exportPath build/ios/ipa \
+              -exportOptionsPlist ios/ExportOptions.plist
+          fi
+
           IPA=$(find build/ios/ipa -maxdepth 1 -name '*.ipa' | head -n1)
-          test -n "$IPA"
+          if [ -z "$IPA" ]; then
+            echo "::error::IPA 파일을 찾을 수 없습니다."
+            ls -la build/ios/ipa/ 2>/dev/null || true
+            exit 1
+          fi
+
           mv "$IPA" "build/ios/ipa/lunch-map-${{ needs.prepare.outputs.new_version }}-ios.ipa"
+          echo "✅ 이름 변경: $(basename "$IPA") → lunch-map-${{ needs.prepare.outputs.new_version }}-ios.ipa"
 
       - uses: actions/upload-artifact@v4
         with:
