@@ -320,6 +320,13 @@ jobs:
           /usr/libexec/PlistBuddy -c "Add :NMFClientId string ${NAVER_MAP_CLIENT_ID}" "$PLIST"
           /usr/libexec/PlistBuddy -c "Delete :NSLocationWhenInUseUsageDescription" "$PLIST" 2>/dev/null || true
           /usr/libexec/PlistBuddy -c "Add :NSLocationWhenInUseUsageDescription string '현재 위치를 표시하기 위해 위치 권한이 필요합니다.'" "$PLIST"
+          # ITMS-90683: 일부 SDK 가 Photo Library API 를 참조하므로 NSPhotoLibraryUsageDescription 가
+          # 없으면 App Store 가 빌드를 거절한다.
+          /usr/libexec/PlistBuddy -c "Delete :NSPhotoLibraryUsageDescription" "$PLIST" 2>/dev/null || true
+          /usr/libexec/PlistBuddy -c "Add :NSPhotoLibraryUsageDescription string '맛집 사진을 첨부하기 위해 사진 라이브러리 접근 권한이 필요합니다.'" "$PLIST"
+          # ITMS-90683 (경고): 일부 위치 SDK 가 Always 권한 API 를 참조 → 경고 회피용 문자열 추가
+          /usr/libexec/PlistBuddy -c "Delete :NSLocationAlwaysAndWhenInUseUsageDescription" "$PLIST" 2>/dev/null || true
+          /usr/libexec/PlistBuddy -c "Add :NSLocationAlwaysAndWhenInUseUsageDescription string '백그라운드에서도 현재 위치를 표시하기 위해 위치 권한이 필요합니다.'" "$PLIST"
           # TestFlight Export Compliance 자동 응답: 표준 HTTPS 외 자체 암호화를 사용하지 않음
           /usr/libexec/PlistBuddy -c "Delete :ITSAppUsesNonExemptEncryption" "$PLIST" 2>/dev/null || true
           /usr/libexec/PlistBuddy -c "Add :ITSAppUsesNonExemptEncryption bool false" "$PLIST"
