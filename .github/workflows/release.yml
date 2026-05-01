@@ -221,6 +221,19 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Xcode 버전 선택 (iOS 26 SDK 사용 – App Store 업로드 요구사항)
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          # App Store Connect 는 iOS 26 SDK(Xcode 26+) 빌드만 수락하므로 최신 안정 버전 사용
+          xcode-version: latest-stable
+
+      - name: 선택된 Xcode / iOS SDK 확인
+        shell: bash
+        run: |
+          xcodebuild -version
+          xcrun --sdk iphoneos --show-sdk-version
+          xcrun --sdk iphoneos --show-sdk-build-version
+
       - uses: subosito/flutter-action@v2
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
@@ -292,7 +305,7 @@ jobs:
           print('✅ Podfile 패치 완료')
           PYEOF
 
-      - name: Info.plist 에 Naver Client ID / 권한 주입
+      - name: Info.plist 에 Naver Client ID / 권한 / Export Compliance 주입
         shell: bash
         env:
           NAVER_MAP_CLIENT_ID: ${{ secrets.NAVER_MAP_CLIENT_ID }}
@@ -302,6 +315,9 @@ jobs:
           /usr/libexec/PlistBuddy -c "Add :NMFClientId string ${NAVER_MAP_CLIENT_ID}" "$PLIST"
           /usr/libexec/PlistBuddy -c "Delete :NSLocationWhenInUseUsageDescription" "$PLIST" 2>/dev/null || true
           /usr/libexec/PlistBuddy -c "Add :NSLocationWhenInUseUsageDescription string '현재 위치를 표시하기 위해 위치 권한이 필요합니다.'" "$PLIST"
+          # TestFlight Export Compliance 자동 응답: 표준 HTTPS 외 자체 암호화를 사용하지 않음
+          /usr/libexec/PlistBuddy -c "Delete :ITSAppUsesNonExemptEncryption" "$PLIST" 2>/dev/null || true
+          /usr/libexec/PlistBuddy -c "Add :ITSAppUsesNonExemptEncryption bool false" "$PLIST"
 
       - name: 임시 키체인 생성 + 배포 인증서 import
         shell: bash
@@ -621,3 +637,74 @@ jobs:
             release-files/*.ipa
             release-files/*.zip
           fail_on_unmatched_files: true
+
+  submit-testflight:
+    name: iOS TestFlight 빌드 제출
+    needs: [prepare, build-ios, release]
+    runs-on: macos-latest
+    steps:
+      - name: iOS IPA 다운로드
+        uses: actions/download-artifact@v4
+        with:
+          name: ios-ipa
+          path: ipa
+
+      - name: App Store Connect API 키 배치
+        shell: bash
+        env:
+          APP_STORE_CONNECT_API_KEY_BASE64: ${{ secrets.APP_STORE_CONNECT_API_KEY_BASE64 }}
+          APP_STORE_CONNECT_API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
+          APP_STORE_CONNECT_API_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_API_ISSUER_ID }}
+        run: |
+          set -euo pipefail
+          if [ -z "${APP_STORE_CONNECT_API_KEY_BASE64}" ] || \
+             [ -z "${APP_STORE_CONNECT_API_KEY_ID}" ] || \
+             [ -z "${APP_STORE_CONNECT_API_ISSUER_ID}" ]; then
+            echo "::error::APP_STORE_CONNECT_API_KEY_BASE64 / APP_STORE_CONNECT_API_KEY_ID / APP_STORE_CONNECT_API_ISSUER_ID 시크릿이 모두 설정되어야 합니다."
+            exit 1
+          fi
+          # altool 은 ~/.appstoreconnect/private_keys/AuthKey_<KEYID>.p8 경로의 키를 자동 탐색
+          mkdir -p "$HOME/.appstoreconnect/private_keys"
+          KEY_PATH="$HOME/.appstoreconnect/private_keys/AuthKey_${APP_STORE_CONNECT_API_KEY_ID}.p8"
+          echo "${APP_STORE_CONNECT_API_KEY_BASE64}" | base64 --decode > "$KEY_PATH"
+          chmod 600 "$KEY_PATH"
+          echo "✅ API 키 배치 완료: $KEY_PATH"
+
+      - name: TestFlight 업로드 (altool)
+        shell: bash
+        env:
+          APP_STORE_CONNECT_API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
+          APP_STORE_CONNECT_API_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_API_ISSUER_ID }}
+        run: |
+          set -euo pipefail
+          IPA=$(find ipa -maxdepth 2 -name '*.ipa' | head -n1)
+          if [ -z "$IPA" ]; then
+            echo "::error::IPA 파일을 찾을 수 없습니다."
+            ls -laR ipa 2>/dev/null || true
+            exit 1
+          fi
+          echo "📤 TestFlight 업로드 대상: $IPA"
+
+          # 1) 사전 검증
+          xcrun altool --validate-app \
+            --type ios \
+            --file "$IPA" \
+            --apiKey "$APP_STORE_CONNECT_API_KEY_ID" \
+            --apiIssuer "$APP_STORE_CONNECT_API_ISSUER_ID"
+
+          # 2) App Store Connect 업로드 → TestFlight 처리 자동 진행
+          xcrun altool --upload-app \
+            --type ios \
+            --file "$IPA" \
+            --apiKey "$APP_STORE_CONNECT_API_KEY_ID" \
+            --apiIssuer "$APP_STORE_CONNECT_API_ISSUER_ID"
+
+          echo "✅ TestFlight 업로드 요청 완료. App Store Connect 의 처리(인코딩/심사 전 검증)에는 수 분이 소요될 수 있습니다."
+
+      - name: API 키 정리
+        if: always()
+        shell: bash
+        env:
+          APP_STORE_CONNECT_API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
+        run: |
+          rm -f "$HOME/.appstoreconnect/private_keys/AuthKey_${APP_STORE_CONNECT_API_KEY_ID}.p8" || true
