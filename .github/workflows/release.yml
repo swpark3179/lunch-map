@@ -214,6 +214,9 @@ jobs:
 
       - run: flutter pub get
 
+      - name: 런처 아이콘 생성 (assets/icon/app_icon.png → mipmap)
+        run: dart run flutter_launcher_icons
+
       - run: flutter build apk --release
 
       - name: 산출물 이름 변경
@@ -476,6 +479,9 @@ jobs:
 
       - run: flutter pub get
 
+      - name: 런처 아이콘 생성 (assets/icon/app_icon.png → AppIcon.appiconset)
+        run: dart run flutter_launcher_icons
+
       - name: flutter build ipa
         shell: bash
         env:
@@ -590,6 +596,9 @@ jobs:
         run: flutter create --platforms=windows --org com.shi .
 
       - run: flutter pub get
+
+      - name: 런처 아이콘 생성 (assets/icon/app_icon.png → Windows .ico)
+        run: dart run flutter_launcher_icons
 
       - run: flutter build windows --release
 
