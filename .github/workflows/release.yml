@@ -625,7 +625,6 @@ jobs:
   submit-testflight:
     name: iOS TestFlight 빌드 제출
     needs: [prepare, build-ios, release]
-    if: ${{ env.IOS_EXPORT_METHOD == 'app-store' }}
     runs-on: macos-latest
     steps:
       - name: iOS IPA 다운로드
