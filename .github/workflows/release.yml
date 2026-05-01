@@ -68,7 +68,7 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v5
         with:
           distribution: 'temurin'
           java-version: '17'
@@ -208,7 +208,7 @@ jobs:
           mv build/app/outputs/flutter-apk/app-release.apk \
              build/app/outputs/flutter-apk/lunch-map-${{ needs.prepare.outputs.new_version }}-android.apk
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         with:
           name: android-apk
           path: build/app/outputs/flutter-apk/lunch-map-*-android.apk
@@ -504,7 +504,7 @@ jobs:
           mv "$IPA" "build/ios/ipa/lunch-map-${{ needs.prepare.outputs.new_version }}-ios.ipa"
           echo "✅ 이름 변경: $(basename "$IPA") → lunch-map-${{ needs.prepare.outputs.new_version }}-ios.ipa"
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         with:
           name: ios-ipa
           path: build/ios/ipa/lunch-map-*-ios.ipa
@@ -562,7 +562,7 @@ jobs:
           $dst = "lunch-map-$version-windows.zip"
           Compress-Archive -Path "$src\*" -DestinationPath $dst -Force
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         with:
           name: windows-build
           path: lunch-map-*-windows.zip
@@ -579,7 +579,7 @@ jobs:
           fetch-depth: 0
 
       - name: 산출물 다운로드
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           path: artifacts
 
@@ -644,7 +644,7 @@ jobs:
     runs-on: macos-latest
     steps:
       - name: iOS IPA 다운로드
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           name: ios-ipa
           path: ipa
