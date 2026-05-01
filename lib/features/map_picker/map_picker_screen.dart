@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/constants/map_constants.dart';
 import '../../data/models/location.dart';
 import '../../data/services/location_service.dart';
 import '../../providers/location_provider.dart';
@@ -22,8 +23,8 @@ class _MapPickerScreenState extends ConsumerState<MapPickerScreen> {
   Location? _targetLocation;
   bool _isLoading = false;
   bool _isSaving = false;
-  double _currentLat = 37.5665;
-  double _currentLng = 126.9780;
+  double _currentLat = kDefaultLat;
+  double _currentLng = kDefaultLng;
 
   @override
   void initState() {

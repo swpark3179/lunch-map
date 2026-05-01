@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -6,7 +7,12 @@ import '../../core/theme/app_theme.dart';
 import '../../data/models/location.dart';
 import '../../providers/location_provider.dart';
 
-/// 장소 목록 화면
+import 'location_map_view_mobile.dart'
+    if (dart.library.html) 'location_map_view_web.dart';
+
+enum _ViewMode { map, list }
+
+/// 장소 목록 화면 (지도뷰 / 리스트뷰)
 class LocationListScreen extends ConsumerStatefulWidget {
   const LocationListScreen({super.key});
 
@@ -17,6 +23,8 @@ class LocationListScreen extends ConsumerStatefulWidget {
 class _LocationListScreenState extends ConsumerState<LocationListScreen> {
   final _searchController = TextEditingController();
   bool _isSearching = false;
+  // 기본은 지도뷰. (단, Web 환경에서는 네이버 지도를 사용할 수 없으므로 리스트뷰로 시작)
+  _ViewMode _viewMode = kIsWeb ? _ViewMode.list : _ViewMode.map;
 
   @override
   void dispose() {
@@ -48,6 +56,21 @@ class _LocationListScreenState extends ConsumerState<LocationListScreen> {
             : const Text('장소 목록'),
         actions: [
           IconButton(
+            tooltip: _viewMode == _ViewMode.map ? '리스트로 보기' : '지도로 보기',
+            icon: Icon(
+              _viewMode == _ViewMode.map
+                  ? Icons.list_alt_rounded
+                  : Icons.map_rounded,
+            ),
+            onPressed: () {
+              setState(() {
+                _viewMode = _viewMode == _ViewMode.map
+                    ? _ViewMode.list
+                    : _ViewMode.map;
+              });
+            },
+          ),
+          IconButton(
             icon: Icon(_isSearching ? Icons.close : Icons.search_rounded),
             onPressed: () {
               setState(() {
@@ -77,10 +100,17 @@ class _LocationListScreenState extends ConsumerState<LocationListScreen> {
             },
           ),
 
-          // ── 목록 ──
+          // ── 본문 (지도 / 리스트) ──
           Expanded(
             child: filteredLocations.when(
               data: (locations) {
+                if (_viewMode == _ViewMode.map) {
+                  return _MapBody(
+                    locations: locations,
+                    onMarkerTap: (loc) =>
+                        context.go('/location/${loc.id}'),
+                  );
+                }
                 if (locations.isEmpty) {
                   return _EmptyState(
                     filter: currentFilter,
@@ -184,6 +214,25 @@ class _LocationListScreenState extends ConsumerState<LocationListScreen> {
         );
       }
     }
+  }
+}
+
+// ─── 지도뷰 본문 ───
+class _MapBody extends StatelessWidget {
+  final List<Location> locations;
+  final void Function(Location location) onMarkerTap;
+
+  const _MapBody({
+    required this.locations,
+    required this.onMarkerTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return LocationMapView(
+      locations: locations,
+      onMarkerTap: onMarkerTap,
+    );
   }
 }
 
