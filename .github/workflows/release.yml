@@ -217,7 +217,10 @@ jobs:
       - name: 런처 아이콘 생성 (assets/icon/app_icon.png → mipmap)
         # pubspec.yaml 의 통합 설정은 모든 플랫폼을 대상으로 하므로,
         # Android 폴더만 존재하는 이 잡에서는 android 전용 설정 파일을 사용한다.
-        run: dart run flutter_launcher_icons -f flutter_launcher_icons-android.yaml
+        # 파일은 ci/launcher_icons/ 하위에 둔다 — 루트의 flutter_launcher_icons-*.yaml
+        # 패턴은 flutter_launcher_icons 가 자동으로 "flavors" 모드로 인식해
+        # 모든 파일을 일괄 실행해 버리는 부작용이 있다.
+        run: dart run flutter_launcher_icons -f ci/launcher_icons/android.yaml
 
       - run: flutter build apk --release
 
@@ -483,7 +486,8 @@ jobs:
 
       - name: 런처 아이콘 생성 (assets/icon/app_icon.png → AppIcon.appiconset)
         # iOS 폴더만 존재하는 이 잡에서는 ios 전용 설정 파일을 사용한다.
-        run: dart run flutter_launcher_icons -f flutter_launcher_icons-ios.yaml
+        # (flavors 자동 감지를 피하기 위해 ci/launcher_icons/ 하위 경로 사용)
+        run: dart run flutter_launcher_icons -f ci/launcher_icons/ios.yaml
 
       - name: flutter build ipa
         shell: bash
@@ -602,7 +606,8 @@ jobs:
 
       - name: 런처 아이콘 생성 (assets/icon/app_icon.png → Windows .ico)
         # Windows 폴더만 존재하는 이 잡에서는 windows 전용 설정 파일을 사용한다.
-        run: dart run flutter_launcher_icons -f flutter_launcher_icons-windows.yaml
+        # (flavors 자동 감지를 피하기 위해 ci/launcher_icons/ 하위 경로 사용)
+        run: dart run flutter_launcher_icons -f ci/launcher_icons/windows.yaml
 
       - run: flutter build windows --release
 
