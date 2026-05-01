@@ -14,10 +14,8 @@ const double kDefaultZoom = 17;
 const double kSamsungRearGateLat = 34.892958;
 const double kSamsungRearGateLng = 128.604391;
 
-/// 사각형 영역 반경(좌표계 기준 반쪽 변 길이)
-/// 약 20m 내외 영역
-const double kSamsungRearGateHalfDeltaLat = 0.0002;
-const double kSamsungRearGateHalfDeltaLng = 0.00025;
+/// 영역 반경 (m)
+const double kSamsungRearGateRadiusMeters = 25;
 
-/// 사각형 영역 라벨
+/// 영역 라벨
 const String kSamsungRearGateLabel = '삼성중공업 후문';

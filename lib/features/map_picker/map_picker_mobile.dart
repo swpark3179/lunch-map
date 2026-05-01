@@ -53,21 +53,15 @@ class _MapPickerBodyState extends State<MapPickerBody> {
   }
 }
 
-/// "삼성중공업 후문" 사각형 영역 + 라벨을 지도 위에 표시
+/// "삼성중공업 후문" 영역 + 라벨을 지도 위에 표시
 Future<void> addSamsungRearGateOverlay(NaverMapController controller) async {
-  final south = kSamsungRearGateLat - kSamsungRearGateHalfDeltaLat;
-  final north = kSamsungRearGateLat + kSamsungRearGateHalfDeltaLat;
-  final west = kSamsungRearGateLng - kSamsungRearGateHalfDeltaLng;
-  final east = kSamsungRearGateLng + kSamsungRearGateHalfDeltaLng;
-
-  final polygon = NPolygonOverlay(
+  // NPolygonOverlay 대신 NCircleOverlay 사용: iOS 측 NPolygonOverlay
+  // createMapOverlay()가 NMFPolygonOverlay 초기화 결과를 강제 언래핑(`!`)하다
+  // nil이 반환되면 앱이 죽는 이슈를 회피한다.
+  final area = NCircleOverlay(
     id: 'samsung_rear_gate_area',
-    coords: [
-      NLatLng(north, west),
-      NLatLng(north, east),
-      NLatLng(south, east),
-      NLatLng(south, west),
-    ],
+    center: const NLatLng(kSamsungRearGateLat, kSamsungRearGateLng),
+    radius: kSamsungRearGateRadiusMeters,
     color: const Color(0x332563EB),
     outlineColor: const Color(0xFF2563EB),
     outlineWidth: 2,
@@ -85,5 +79,5 @@ Future<void> addSamsungRearGateOverlay(NaverMapController controller) async {
     iconTintColor: const Color(0xFF2563EB),
   );
 
-  await controller.addOverlayAll({polygon, marker});
+  await controller.addOverlayAll({area, marker});
 }
