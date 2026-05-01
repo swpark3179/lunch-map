@@ -221,6 +221,19 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Xcode 버전 선택 (iOS 26 SDK 사용 – App Store 업로드 요구사항)
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          # App Store Connect 는 iOS 26 SDK(Xcode 26+) 빌드만 수락하므로 최신 안정 버전 사용
+          xcode-version: latest-stable
+
+      - name: 선택된 Xcode / iOS SDK 확인
+        shell: bash
+        run: |
+          xcodebuild -version
+          xcrun --sdk iphoneos --show-sdk-version
+          xcrun --sdk iphoneos --show-sdk-build-version
+
       - uses: subosito/flutter-action@v2
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
