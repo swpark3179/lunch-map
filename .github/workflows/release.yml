@@ -20,6 +20,11 @@ env:
   FLUTTER_VERSION: '3.29.0'
   APP_BUNDLE_ID: 'com.shi.lunchmap'
   IOS_EXPORT_METHOD: 'app-store'  # 필요 시 ad-hoc / development / enterprise 로 변경
+  # actions/upload-artifact@v5 등 일부 공식 액션이 아직 action.yml 의 runs.using
+  # 을 node20 으로 선언해 deprecation 워닝을 발생시킨다. 액션 측이 node24 로
+  # 마이그레이션할 때까지 GitHub 공식 권장 우회책인 강제 Node 24 실행 플래그를
+  # 워크플로 전역에 적용한다.
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
 
 jobs:
   prepare:
