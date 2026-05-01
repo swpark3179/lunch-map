@@ -20,6 +20,7 @@ env:
   FLUTTER_VERSION: '3.29.0'
   APP_BUNDLE_ID: 'com.shi.lunchmap'
   IOS_EXPORT_METHOD: 'app-store'  # 필요 시 ad-hoc / development / enterprise 로 변경
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
   prepare:
