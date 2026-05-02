@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
@@ -10,7 +9,8 @@ class AppShell extends StatelessWidget {
 
   int _getCurrentIndex(BuildContext context) {
     final location = GoRouterState.of(context).uri.toString();
-    if (location.startsWith('/locations') || location.startsWith('/location/')) {
+    if (location.startsWith('/locations') ||
+        location.startsWith('/location/')) {
       return 1;
     }
     if (location.startsWith('/map-picker')) return 2;
@@ -25,9 +25,8 @@ class AppShell extends StatelessWidget {
 
     return Scaffold(
       body: child,
-      bottomNavigationBar: isDesktop
-          ? null
-          : _MobileBottomNav(currentIndex: currentIndex),
+      bottomNavigationBar:
+          isDesktop ? null : _MobileBottomNav(currentIndex: currentIndex),
     );
   }
 }

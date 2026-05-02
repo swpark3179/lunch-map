@@ -1,9 +1,9 @@
+import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../core/theme/app_theme.dart';
 import '../../providers/location_provider.dart';
 
 /// 홈 화면 (대시보드)
@@ -21,38 +21,36 @@ class HomeScreen extends ConsumerWidget {
       body: CustomScrollView(
         slivers: [
           // ── 히어로 헤더 ──
-          SliverToBoxAdapter(
-            child: _HeroHeader(isDesktop: isDesktop),
-          ),
+          SliverToBoxAdapter(child: _HeroHeader(isDesktop: isDesktop)),
 
           // ── 통계 카드 ──
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-              child: Text(
-                '📊 대시보드',
-                style: theme.textTheme.headlineMedium,
-              ),
+              child: Text('📊 대시보드', style: theme.textTheme.headlineMedium),
             ),
           ),
           SliverToBoxAdapter(
             child: stats.when(
-              data: (data) => _StatsGrid(
-                total: data['total'] ?? 0,
-                fixed: data['fixed'] ?? 0,
-                unfixed: data['unfixed'] ?? 0,
-                isDesktop: isDesktop,
-              ),
-              loading: () => const Padding(
-                padding: EdgeInsets.all(40),
-                child: Center(child: CircularProgressIndicator()),
-              ),
-              error: (e, _) => _StatsGrid(
-                total: 0,
-                fixed: 0,
-                unfixed: 0,
-                isDesktop: isDesktop,
-              ),
+              data:
+                  (data) => _StatsGrid(
+                    total: data['total'] ?? 0,
+                    fixed: data['fixed'] ?? 0,
+                    unfixed: data['unfixed'] ?? 0,
+                    isDesktop: isDesktop,
+                  ),
+              loading:
+                  () => const Padding(
+                    padding: EdgeInsets.all(40),
+                    child: Center(child: CircularProgressIndicator()),
+                  ),
+              error:
+                  (e, _) => _StatsGrid(
+                    total: 0,
+                    fixed: 0,
+                    unfixed: 0,
+                    isDesktop: isDesktop,
+                  ),
             ),
           ),
 
@@ -60,15 +58,10 @@ class HomeScreen extends ConsumerWidget {
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(20, 24, 20, 8),
-              child: Text(
-                '⚡ 빠른 시작',
-                style: theme.textTheme.headlineMedium,
-              ),
+              child: Text('⚡ 빠른 시작', style: theme.textTheme.headlineMedium),
             ),
           ),
-          SliverToBoxAdapter(
-            child: _QuickActions(isDesktop: isDesktop),
-          ),
+          SliverToBoxAdapter(child: _QuickActions(isDesktop: isDesktop)),
 
           const SliverToBoxAdapter(child: SizedBox(height: 100)),
         ],
@@ -97,11 +90,7 @@ class _HeroHeader extends StatelessWidget {
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [
-            Color(0xFF1E40AF),
-            Color(0xFF7C3AED),
-            Color(0xFF06B6D4),
-          ],
+          colors: [Color(0xFF1E40AF), Color(0xFF7C3AED), Color(0xFF06B6D4)],
         ),
         borderRadius: BorderRadius.only(
           bottomLeft: Radius.circular(32),
@@ -159,9 +148,7 @@ class _HeroHeader extends StatelessWidget {
             decoration: BoxDecoration(
               color: Colors.white.withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: Colors.white.withValues(alpha: 0.25),
-              ),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.25)),
             ),
             child: Row(
               children: [
@@ -228,15 +215,15 @@ class _StatsGrid extends StatelessWidget {
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: isDesktop
-          ? Row(
-              children: cards
-                  .map((c) => Expanded(child: _StatCard(data: c)))
-                  .toList(),
-            )
-          : Column(
-              children: cards.map((c) => _StatCard(data: c)).toList(),
-            ),
+      child:
+          isDesktop
+              ? Row(
+                children:
+                    cards
+                        .map((c) => Expanded(child: _StatCard(data: c)))
+                        .toList(),
+              )
+              : Column(children: cards.map((c) => _StatCard(data: c)).toList()),
     );
   }
 }
@@ -299,10 +286,7 @@ class _StatCard extends StatelessWidget {
                     color: data.gradient[0],
                   ),
                 ),
-                Text(
-                  data.label,
-                  style: Theme.of(context).textTheme.bodyMedium,
-                ),
+                Text(data.label, style: Theme.of(context).textTheme.bodyMedium),
               ],
             ),
           ],
@@ -328,7 +312,7 @@ class _QuickActions extends StatelessWidget {
         color: const Color(0xFF3B82F6),
         route: '/locations',
       ),
-      if (!kIsWeb)
+      if (!kIsWeb && (Platform.isAndroid || Platform.isIOS))
         _ActionData(
           title: '지도에서 등록',
           subtitle: '네이버 지도에서 위치를 선택합니다',
@@ -347,15 +331,17 @@ class _QuickActions extends StatelessWidget {
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: isDesktop
-          ? Row(
-              children: actions
-                  .map((a) => Expanded(child: _ActionCard(data: a)))
-                  .toList(),
-            )
-          : Column(
-              children: actions.map((a) => _ActionCard(data: a)).toList(),
-            ),
+      child:
+          isDesktop
+              ? Row(
+                children:
+                    actions
+                        .map((a) => Expanded(child: _ActionCard(data: a)))
+                        .toList(),
+              )
+              : Column(
+                children: actions.map((a) => _ActionCard(data: a)).toList(),
+              ),
     );
   }
 }
@@ -407,10 +393,9 @@ class _ActionCard extends StatelessWidget {
                   children: [
                     Text(
                       data.title,
-                      style: Theme.of(context)
-                          .textTheme
-                          .titleMedium
-                          ?.copyWith(fontWeight: FontWeight.w600),
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                     const SizedBox(height: 4),
                     Text(

@@ -32,7 +32,10 @@ class _ExcelUploadScreenState extends ConsumerState<ExcelUploadScreen> {
   bool _hasHeader = true;
 
   Future<void> _pickFile() async {
-    setState(() { _error = null; _parsedRows = null; });
+    setState(() {
+      _error = null;
+      _parsedRows = null;
+    });
 
     final result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
@@ -87,13 +90,15 @@ class _ExcelUploadScreenState extends ConsumerState<ExcelUploadScreen> {
       final lat = double.tryParse(latStr);
       final lng = double.tryParse(lngStr);
 
-      rows.add(_ParsedRow(
-        name: name,
-        address: address.isEmpty ? null : address,
-        lat: lat,
-        lng: lng,
-        isValid: name.isNotEmpty,
-      ));
+      rows.add(
+        _ParsedRow(
+          name: name,
+          address: address.isEmpty ? null : address,
+          lat: lat,
+          lng: lng,
+          isValid: name.isNotEmpty,
+        ),
+      );
     }
 
     setState(() => _parsedRows = rows);
@@ -110,18 +115,21 @@ class _ExcelUploadScreenState extends ConsumerState<ExcelUploadScreen> {
 
     setState(() => _isUploading = true);
     try {
-      final locations = _parsedRows!
-          .where((r) => r.isValid)
-          .map((r) => Location(
-                id: '',
-                name: r.name,
-                address: r.address,
-                lat: r.lat,
-                lng: r.lng,
-                isFixed: r.lat != null && r.lng != null,
-                createdAt: DateTime.now(),
-              ))
-          .toList();
+      final locations =
+          _parsedRows!
+              .where((r) => r.isValid)
+              .map(
+                (r) => Location(
+                  id: '',
+                  name: r.name,
+                  address: r.address,
+                  lat: r.lat,
+                  lng: r.lng,
+                  isFixed: r.lat != null && r.lng != null,
+                  createdAt: DateTime.now(),
+                ),
+              )
+              .toList();
 
       final count = await ref
           .read(locationListProvider.notifier)
@@ -134,7 +142,10 @@ class _ExcelUploadScreenState extends ConsumerState<ExcelUploadScreen> {
             backgroundColor: const Color(0xFF10B981),
           ),
         );
-        setState(() { _parsedRows = null; _fileName = null; });
+        setState(() {
+          _parsedRows = null;
+          _fileName = null;
+        });
         context.go('/locations');
       }
     } catch (e) {
@@ -187,13 +198,26 @@ class _ExcelUploadScreenState extends ConsumerState<ExcelUploadScreen> {
                     height: 56,
                     child: ElevatedButton.icon(
                       onPressed: _isParsing ? null : _pickFile,
-                      icon: _isParsing
-                          ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                          : const Icon(Icons.file_open_rounded, size: 24),
-                      label: Text(_isParsing ? '파싱 중...' : '.xlsx 파일 선택', style: const TextStyle(fontSize: 16)),
+                      icon:
+                          _isParsing
+                              ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
+                              )
+                              : const Icon(Icons.file_open_rounded, size: 24),
+                      label: Text(
+                        _isParsing ? '파싱 중...' : '.xlsx 파일 선택',
+                        style: const TextStyle(fontSize: 16),
+                      ),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFF7C3AED),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
                       ),
                     ),
                   ),
@@ -210,8 +234,23 @@ class _ExcelUploadScreenState extends ConsumerState<ExcelUploadScreen> {
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(color: Colors.red[50], borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.red[200]!)),
-                child: Row(children: [const Icon(Icons.error_outline, color: Colors.red), const SizedBox(width: 10), Expanded(child: Text(_error!, style: const TextStyle(color: Colors.red)))]),
+                decoration: BoxDecoration(
+                  color: Colors.red[50],
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.red[200]!),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.error_outline, color: Colors.red),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        _error!,
+                        style: const TextStyle(color: Colors.red),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ],
 
@@ -221,16 +260,29 @@ class _ExcelUploadScreenState extends ConsumerState<ExcelUploadScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text('📋 미리보기 (${_parsedRows!.length}건)', style: theme.textTheme.titleLarge),
+                  Text(
+                    '📋 미리보기 (${_parsedRows!.length}건)',
+                    style: theme.textTheme.titleLarge,
+                  ),
                   SizedBox(
                     height: 44,
                     child: ElevatedButton.icon(
                       onPressed: _isUploading ? null : _uploadAll,
-                      icon: _isUploading
-                          ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                          : const Icon(Icons.cloud_upload_rounded),
+                      icon:
+                          _isUploading
+                              ? const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
+                              )
+                              : const Icon(Icons.cloud_upload_rounded),
                       label: Text(_isUploading ? '업로드 중...' : '전체 업로드'),
-                      style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF10B981)),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF10B981),
+                      ),
                     ),
                   ),
                 ],
@@ -254,23 +306,41 @@ class _InfoCard extends StatelessWidget {
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [const Color(0xFF7C3AED).withValues(alpha: 0.1), const Color(0xFF7C3AED).withValues(alpha: 0.03)],
+          colors: [
+            const Color(0xFF7C3AED).withValues(alpha: 0.1),
+            const Color(0xFF7C3AED).withValues(alpha: 0.03),
+          ],
         ),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFF7C3AED).withValues(alpha: 0.2)),
+        border: Border.all(
+          color: const Color(0xFF7C3AED).withValues(alpha: 0.2),
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(children: [
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(color: const Color(0xFF7C3AED).withValues(alpha: 0.15), borderRadius: BorderRadius.circular(10)),
-              child: const Icon(Icons.info_outline_rounded, color: Color(0xFF7C3AED)),
-            ),
-            const SizedBox(width: 12),
-            Text('엑셀 파일 형식 안내', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
-          ]),
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF7C3AED).withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(
+                  Icons.info_outline_rounded,
+                  color: Color(0xFF7C3AED),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Text(
+                '엑셀 파일 형식 안내',
+                style: Theme.of(
+                  context,
+                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+              ),
+            ],
+          ),
           const SizedBox(height: 14),
           const Text('• 지원 형식: .xlsx'),
           const SizedBox(height: 4),
@@ -289,14 +359,22 @@ class _InfoCard extends StatelessWidget {
 class _ColumnMappingSection extends StatelessWidget {
   final int nameCol, addressCol, latCol, lngCol;
   final bool hasHeader;
-  final ValueChanged<int> onNameColChanged, onAddressColChanged, onLatColChanged, onLngColChanged;
+  final ValueChanged<int> onNameColChanged,
+      onAddressColChanged,
+      onLatColChanged,
+      onLngColChanged;
   final ValueChanged<bool> onHasHeaderChanged;
 
   const _ColumnMappingSection({
-    required this.nameCol, required this.addressCol,
-    required this.latCol, required this.lngCol, required this.hasHeader,
-    required this.onNameColChanged, required this.onAddressColChanged,
-    required this.onLatColChanged, required this.onLngColChanged,
+    required this.nameCol,
+    required this.addressCol,
+    required this.latCol,
+    required this.lngCol,
+    required this.hasHeader,
+    required this.onNameColChanged,
+    required this.onAddressColChanged,
+    required this.onLatColChanged,
+    required this.onLngColChanged,
     required this.onHasHeaderChanged,
   });
 
@@ -308,15 +386,23 @@ class _ColumnMappingSection extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('⚙️ 컬럼 매핑', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+            Text(
+              '⚙️ 컬럼 매핑',
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+            ),
             const SizedBox(height: 14),
             CheckboxListTile(
-              title: const Text('첫 번째 행이 헤더입니다'), value: hasHeader,
+              title: const Text('첫 번째 행이 헤더입니다'),
+              value: hasHeader,
               onChanged: (v) => onHasHeaderChanged(v ?? true),
-              contentPadding: EdgeInsets.zero, controlAffinity: ListTileControlAffinity.leading,
+              contentPadding: EdgeInsets.zero,
+              controlAffinity: ListTileControlAffinity.leading,
             ),
             Wrap(
-              spacing: 16, runSpacing: 12,
+              spacing: 16,
+              runSpacing: 12,
               children: [
                 _colDropdown('이름 (필수)', nameCol, onNameColChanged),
                 _colDropdown('주소', addressCol, onAddressColChanged),
@@ -335,10 +421,24 @@ class _ColumnMappingSection extends StatelessWidget {
     return SizedBox(
       width: 140,
       child: DropdownButtonFormField<int>(
-        value: value,
-        decoration: InputDecoration(labelText: label, contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8)),
-        items: List.generate(letters.length, (i) => DropdownMenuItem(value: i, child: Text('${letters[i]}열 (${i + 1})'))),
-        onChanged: (v) { if (v != null) onChanged(v); },
+        initialValue: value,
+        decoration: InputDecoration(
+          labelText: label,
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 12,
+            vertical: 8,
+          ),
+        ),
+        items: List.generate(
+          letters.length,
+          (i) => DropdownMenuItem(
+            value: i,
+            child: Text('${letters[i]}열 (${i + 1})'),
+          ),
+        ),
+        onChanged: (v) {
+          if (v != null) onChanged(v);
+        },
       ),
     );
   }
@@ -355,7 +455,10 @@ class _PreviewTable extends StatelessWidget {
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
         child: DataTable(
-          headingRowColor: WidgetStateColor.resolveWith((_) => Theme.of(context).colorScheme.primary.withValues(alpha: 0.06)),
+          headingRowColor: WidgetStateColor.resolveWith(
+            (_) =>
+                Theme.of(context).colorScheme.primary.withValues(alpha: 0.06),
+          ),
           columns: const [
             DataColumn(label: Text('#')),
             DataColumn(label: Text('장소 이름')),
@@ -364,26 +467,56 @@ class _PreviewTable extends StatelessWidget {
             DataColumn(label: Text('경도')),
             DataColumn(label: Text('상태')),
           ],
-          rows: rows.asMap().entries.map((e) {
-            final i = e.key;
-            final r = e.value;
-            final hasCoords = r.lat != null && r.lng != null;
-            return DataRow(cells: [
-              DataCell(Text('${i + 1}')),
-              DataCell(Text(r.name, style: const TextStyle(fontWeight: FontWeight.w500))),
-              DataCell(Text(r.address ?? '-')),
-              DataCell(Text(r.lat?.toStringAsFixed(4) ?? '-')),
-              DataCell(Text(r.lng?.toStringAsFixed(4) ?? '-')),
-              DataCell(Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: hasCoords ? const Color(0xFF10B981).withValues(alpha: 0.1) : const Color(0xFFF59E0B).withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(hasCoords ? '확정' : '미확정', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: hasCoords ? const Color(0xFF10B981) : const Color(0xFFF59E0B))),
-              )),
-            ]);
-          }).toList(),
+          rows:
+              rows.asMap().entries.map((e) {
+                final i = e.key;
+                final r = e.value;
+                final hasCoords = r.lat != null && r.lng != null;
+                return DataRow(
+                  cells: [
+                    DataCell(Text('${i + 1}')),
+                    DataCell(
+                      Text(
+                        r.name,
+                        style: const TextStyle(fontWeight: FontWeight.w500),
+                      ),
+                    ),
+                    DataCell(Text(r.address ?? '-')),
+                    DataCell(Text(r.lat?.toStringAsFixed(4) ?? '-')),
+                    DataCell(Text(r.lng?.toStringAsFixed(4) ?? '-')),
+                    DataCell(
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 3,
+                        ),
+                        decoration: BoxDecoration(
+                          color:
+                              hasCoords
+                                  ? const Color(
+                                    0xFF10B981,
+                                  ).withValues(alpha: 0.1)
+                                  : const Color(
+                                    0xFFF59E0B,
+                                  ).withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          hasCoords ? '확정' : '미확정',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color:
+                                hasCoords
+                                    ? const Color(0xFF10B981)
+                                    : const Color(0xFFF59E0B),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                );
+              }).toList(),
         ),
       ),
     );
@@ -399,6 +532,10 @@ class _ParsedRow {
   final bool isValid;
 
   const _ParsedRow({
-    required this.name, this.address, this.lat, this.lng, this.isValid = true,
+    required this.name,
+    this.address,
+    this.lat,
+    this.lng,
+    this.isValid = true,
   });
 }

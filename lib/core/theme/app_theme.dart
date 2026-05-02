@@ -10,8 +10,6 @@ class AppTheme {
   static const Color _secondaryColor = Color(0xFF7C3AED); // Purple
   static const Color _tertiaryColor = Color(0xFF06B6D4); // Cyan
   static const Color _errorColor = Color(0xFFEF4444);
-  static const Color _successColor = Color(0xFF10B981);
-  static const Color _warningColor = Color(0xFFF59E0B);
 
   // 핀 관련 색상
   static const Color pinFixed = Color(0xFF10B981); // 위치 확정 (녹색)
@@ -134,8 +132,10 @@ class AppTheme {
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide(color: _primaryColor, width: 2),
         ),
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 14,
+        ),
         hintStyle: GoogleFonts.notoSansKr(
           fontSize: 14,
           color: const Color(0xFF94A3B8),
@@ -145,9 +145,7 @@ class AppTheme {
         elevation: 4,
         backgroundColor: _primaryColor,
         foregroundColor: Colors.white,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       ),
       bottomNavigationBarTheme: const BottomNavigationBarThemeData(
         elevation: 8,
@@ -158,14 +156,10 @@ class AppTheme {
       ),
       snackBarTheme: SnackBarThemeData(
         behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
       dialogTheme: DialogThemeData(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       ),
       dividerTheme: const DividerThemeData(
         color: Color(0xFFE2E8F0),
@@ -190,9 +184,7 @@ class AppTheme {
       useMaterial3: true,
       colorScheme: colorScheme,
       scaffoldBackgroundColor: const Color(0xFF0F172A),
-      textTheme: GoogleFonts.notoSansKrTextTheme(
-        ThemeData.dark().textTheme,
-      ),
+      textTheme: GoogleFonts.notoSansKrTextTheme(ThemeData.dark().textTheme),
       appBarTheme: AppBarTheme(
         elevation: 0,
         scrolledUnderElevation: 2,
@@ -244,16 +236,16 @@ class AppTheme {
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide(color: const Color(0xFF60A5FA), width: 2),
         ),
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 14,
+        ),
       ),
       floatingActionButtonTheme: FloatingActionButtonThemeData(
         elevation: 4,
         backgroundColor: const Color(0xFF3B82F6),
         foregroundColor: Colors.white,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       ),
       bottomNavigationBarTheme: const BottomNavigationBarThemeData(
         elevation: 8,

@@ -9,8 +9,8 @@ enum LocationFilter { all, fixed, unfixed }
 /// 장소 목록 Provider
 final locationListProvider =
     AsyncNotifierProvider<LocationListNotifier, List<Location>>(
-  LocationListNotifier.new,
-);
+      LocationListNotifier.new,
+    );
 
 /// 현재 필터 Provider
 final locationFilterProvider = StateProvider<LocationFilter>(
@@ -18,9 +18,7 @@ final locationFilterProvider = StateProvider<LocationFilter>(
 );
 
 /// 검색 쿼리 Provider
-final locationSearchProvider = StateProvider<String>(
-  (ref) => '',
-);
+final locationSearchProvider = StateProvider<String>((ref) => '');
 
 /// 통계 Provider
 final locationStatsProvider = FutureProvider<Map<String, int>>((ref) async {
@@ -28,7 +26,9 @@ final locationStatsProvider = FutureProvider<Map<String, int>>((ref) async {
 });
 
 /// 필터링된 장소 목록 Provider
-final filteredLocationListProvider = Provider<AsyncValue<List<Location>>>((ref) {
+final filteredLocationListProvider = Provider<AsyncValue<List<Location>>>((
+  ref,
+) {
   final filter = ref.watch(locationFilterProvider);
   final search = ref.watch(locationSearchProvider);
   final locations = ref.watch(locationListProvider);
@@ -50,12 +50,15 @@ final filteredLocationListProvider = Provider<AsyncValue<List<Location>>>((ref) 
 
     // 검색 적용
     if (search.isNotEmpty) {
-      filtered = filtered
-          .where((l) =>
-              l.name.toLowerCase().contains(search.toLowerCase()) ||
-              (l.address?.toLowerCase().contains(search.toLowerCase()) ??
-                  false))
-          .toList();
+      filtered =
+          filtered
+              .where(
+                (l) =>
+                    l.name.toLowerCase().contains(search.toLowerCase()) ||
+                    (l.address?.toLowerCase().contains(search.toLowerCase()) ??
+                        false),
+              )
+              .toList();
     }
 
     return filtered;
@@ -97,8 +100,7 @@ class LocationListNotifier extends AsyncNotifier<List<Location>> {
   }
 
   /// 좌표 업데이트
-  Future<void> updateCoordinates(
-      String id, double lat, double lng) async {
+  Future<void> updateCoordinates(String id, double lat, double lng) async {
     await LocationService.updateCoordinates(id, lat: lat, lng: lng);
     await refresh();
   }
