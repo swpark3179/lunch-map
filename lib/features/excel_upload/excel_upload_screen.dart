@@ -421,7 +421,7 @@ class _ColumnMappingSection extends StatelessWidget {
     return SizedBox(
       width: 140,
       child: DropdownButtonFormField<int>(
-        initialValue: value,
+        value: value,
         decoration: InputDecoration(
           labelText: label,
           contentPadding: const EdgeInsets.symmetric(
