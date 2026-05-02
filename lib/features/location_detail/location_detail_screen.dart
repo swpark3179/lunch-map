@@ -10,10 +10,7 @@ import '../../data/services/location_service.dart';
 class LocationDetailScreen extends ConsumerStatefulWidget {
   final String locationId;
 
-  const LocationDetailScreen({
-    super.key,
-    required this.locationId,
-  });
+  const LocationDetailScreen({super.key, required this.locationId});
 
   @override
   ConsumerState<LocationDetailScreen> createState() =>
@@ -111,15 +108,16 @@ class _LocationDetailScreenState extends ConsumerState<LocationDetailScreen> {
                 gradient: LinearGradient(
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
-                  colors: location.isFixed
-                      ? [
-                          const Color(0xFF10B981).withValues(alpha: 0.15),
-                          const Color(0xFF059669).withValues(alpha: 0.05),
-                        ]
-                      : [
-                          const Color(0xFFF59E0B).withValues(alpha: 0.15),
-                          const Color(0xFFD97706).withValues(alpha: 0.05),
-                        ],
+                  colors:
+                      location.isFixed
+                          ? [
+                            const Color(0xFF10B981).withValues(alpha: 0.15),
+                            const Color(0xFF059669).withValues(alpha: 0.05),
+                          ]
+                          : [
+                            const Color(0xFFF59E0B).withValues(alpha: 0.15),
+                            const Color(0xFFD97706).withValues(alpha: 0.05),
+                          ],
                 ),
                 borderRadius: BorderRadius.circular(20),
                 border: Border.all(
@@ -147,9 +145,10 @@ class _LocationDetailScreenState extends ConsumerState<LocationDetailScreen> {
                           location.isFixed
                               ? Icons.location_on_rounded
                               : Icons.location_off_rounded,
-                          color: location.isFixed
-                              ? AppTheme.pinFixed
-                              : AppTheme.pinUnfixed,
+                          color:
+                              location.isFixed
+                                  ? AppTheme.pinFixed
+                                  : AppTheme.pinUnfixed,
                           size: 32,
                         ),
                       ),
@@ -180,9 +179,10 @@ class _LocationDetailScreenState extends ConsumerState<LocationDetailScreen> {
                                 style: TextStyle(
                                   fontSize: 12,
                                   fontWeight: FontWeight.w600,
-                                  color: location.isFixed
-                                      ? AppTheme.pinFixed
-                                      : AppTheme.pinUnfixed,
+                                  color:
+                                      location.isFixed
+                                          ? AppTheme.pinFixed
+                                          : AppTheme.pinUnfixed,
                                 ),
                               ),
                             ),
@@ -247,9 +247,7 @@ class _LocationDetailScreenState extends ConsumerState<LocationDetailScreen> {
                 decoration: BoxDecoration(
                   color: const Color(0xFFFEF3C7),
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(
-                    color: const Color(0xFFFCD34D),
-                  ),
+                  border: Border.all(color: const Color(0xFFFCD34D)),
                 ),
                 child: Column(
                   children: [
@@ -275,9 +273,7 @@ class _LocationDetailScreenState extends ConsumerState<LocationDetailScreen> {
                     const SizedBox(height: 16),
                     ElevatedButton.icon(
                       onPressed: () {
-                        context.go(
-                          '/map-picker?locationId=${location.id}',
-                        );
+                        context.go('/map-picker?locationId=${location.id}');
                       },
                       icon: const Icon(Icons.map_rounded),
                       label: const Text('지도에서 위치 설정'),
@@ -314,10 +310,9 @@ class _DetailSection extends StatelessWidget {
           children: [
             Text(
               title,
-              style: Theme.of(context)
-                  .textTheme
-                  .titleMedium
-                  ?.copyWith(fontWeight: FontWeight.w700),
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
             ),
             const SizedBox(height: 16),
             ...children,

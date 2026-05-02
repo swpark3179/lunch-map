@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_naver_map/flutter_naver_map.dart';
 
@@ -25,6 +26,25 @@ class _MapPickerBodyState extends State<MapPickerBody> {
 
   @override
   Widget build(BuildContext context) {
+    if (!Platform.isAndroid && !Platform.isIOS) {
+      return Container(
+        color: const Color(0xFFF1F5F9),
+        child: const Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.map_outlined, size: 80, color: Colors.grey),
+              SizedBox(height: 16),
+              Text(
+                '현재 플랫폼에서는 네이버 지도를\n사용할 수 없습니다.',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 16, color: Colors.grey),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
     return NaverMap(
       options: NaverMapViewOptions(
         initialCameraPosition: NCameraPosition(
@@ -32,7 +52,7 @@ class _MapPickerBodyState extends State<MapPickerBody> {
           zoom: kDefaultZoom,
         ),
         mapType: NMapType.basic,
-        activeLayerGroups: [NLayerGroup.building, NLayerGroup.transit],
+        activeLayerGroups: const [NLayerGroup.building, NLayerGroup.transit],
         locationButtonEnable: true,
         consumeSymbolTapEvents: false,
       ),
@@ -42,6 +62,7 @@ class _MapPickerBodyState extends State<MapPickerBody> {
       },
       onCameraIdle: () {
         if (_controller != null) {
+          // ignore: experimental_member_use
           final position = _controller!.nowCameraPosition;
           widget.onCameraIdle(
             position.target.latitude,
@@ -55,6 +76,8 @@ class _MapPickerBodyState extends State<MapPickerBody> {
 
 /// "삼성중공업 후문" 영역 + 라벨을 지도 위에 표시
 Future<void> addSamsungRearGateOverlay(NaverMapController controller) async {
+  if (!Platform.isAndroid && !Platform.isIOS) return;
+
   // NPolygonOverlay 대신 NCircleOverlay 사용: iOS 측 NPolygonOverlay
   // createMapOverlay()가 NMFPolygonOverlay 초기화 결과를 강제 언래핑(`!`)하다
   // nil이 반환되면 앱이 죽는 이슈를 회피한다.

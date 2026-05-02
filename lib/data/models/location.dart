@@ -40,8 +40,7 @@ class Location {
       if (lng != null) 'lng': lng,
       'is_fixed': isFixed,
       // coords(geography)는 lat/lng가 있을 때 DB 트리거 또는 서비스 레이어에서 처리
-      if (lat != null && lng != null)
-        'coords': 'POINT($lng $lat)',
+      if (lat != null && lng != null) 'coords': 'POINT($lng $lat)',
     };
   }
 
@@ -75,9 +74,7 @@ class Location {
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other is Location &&
-          runtimeType == other.runtimeType &&
-          id == other.id;
+      other is Location && runtimeType == other.runtimeType && id == other.id;
 
   @override
   int get hashCode => id.hashCode;

@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -7,8 +8,9 @@ import '../../core/theme/app_theme.dart';
 import '../../data/models/location.dart';
 import '../../providers/location_provider.dart';
 
-import 'location_map_view_mobile.dart'
-    if (dart.library.html) 'location_map_view_web.dart';
+import 'location_map_view_stub.dart'
+    if (dart.library.html) 'location_map_view_web.dart'
+    if (dart.library.io) 'location_map_view_mobile.dart';
 
 enum _ViewMode { map, list }
 
@@ -24,7 +26,10 @@ class _LocationListScreenState extends ConsumerState<LocationListScreen> {
   final _searchController = TextEditingController();
   bool _isSearching = false;
   // 기본은 지도뷰. (단, Web 환경에서는 네이버 지도를 사용할 수 없으므로 리스트뷰로 시작)
-  _ViewMode _viewMode = kIsWeb ? _ViewMode.list : _ViewMode.map;
+  _ViewMode _viewMode =
+      (kIsWeb || (!Platform.isAndroid && !Platform.isIOS))
+          ? _ViewMode.list
+          : _ViewMode.map;
 
   @override
   void dispose() {
@@ -40,20 +45,21 @@ class _LocationListScreenState extends ConsumerState<LocationListScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: _isSearching
-            ? TextField(
-                controller: _searchController,
-                autofocus: true,
-                decoration: const InputDecoration(
-                  hintText: '장소 검색...',
-                  border: InputBorder.none,
-                  filled: false,
-                ),
-                onChanged: (value) {
-                  ref.read(locationSearchProvider.notifier).state = value;
-                },
-              )
-            : const Text('장소 목록'),
+        title:
+            _isSearching
+                ? TextField(
+                  controller: _searchController,
+                  autofocus: true,
+                  decoration: const InputDecoration(
+                    hintText: '장소 검색...',
+                    border: InputBorder.none,
+                    filled: false,
+                  ),
+                  onChanged: (value) {
+                    ref.read(locationSearchProvider.notifier).state = value;
+                  },
+                )
+                : const Text('장소 목록'),
         actions: [
           IconButton(
             tooltip: _viewMode == _ViewMode.map ? '리스트로 보기' : '지도로 보기',
@@ -64,9 +70,8 @@ class _LocationListScreenState extends ConsumerState<LocationListScreen> {
             ),
             onPressed: () {
               setState(() {
-                _viewMode = _viewMode == _ViewMode.map
-                    ? _ViewMode.list
-                    : _ViewMode.map;
+                _viewMode =
+                    _viewMode == _ViewMode.map ? _ViewMode.list : _ViewMode.map;
               });
             },
           ),
@@ -107,8 +112,7 @@ class _LocationListScreenState extends ConsumerState<LocationListScreen> {
                 if (_viewMode == _ViewMode.map) {
                   return _MapBody(
                     locations: locations,
-                    onMarkerTap: (loc) =>
-                        context.go('/location/${loc.id}'),
+                    onMarkerTap: (loc) => context.go('/location/${loc.id}'),
                   );
                 }
                 if (locations.isEmpty) {
@@ -118,63 +122,68 @@ class _LocationListScreenState extends ConsumerState<LocationListScreen> {
                   );
                 }
                 return RefreshIndicator(
-                  onRefresh: () =>
-                      ref.read(locationListProvider.notifier).refresh(),
+                  onRefresh:
+                      () => ref.read(locationListProvider.notifier).refresh(),
                   child: ListView.builder(
                     padding: const EdgeInsets.only(bottom: 100),
                     itemCount: locations.length,
-                    itemBuilder: (context, index) => _LocationCard(
-                      location: locations[index],
-                      onTap: () => context.go(
-                        '/location/${locations[index].id}',
-                      ),
-                      onFixLocation: () {
-                        context.go(
-                          '/map-picker?locationId=${locations[index].id}',
-                        );
-                      },
-                      onDelete: () => _confirmDelete(
-                        context,
-                        ref,
-                        locations[index],
-                      ),
-                    ),
+                    itemBuilder:
+                        (context, index) => _LocationCard(
+                          location: locations[index],
+                          onTap:
+                              () => context.go(
+                                '/location/${locations[index].id}',
+                              ),
+                          onFixLocation: () {
+                            context.go(
+                              '/map-picker?locationId=${locations[index].id}',
+                            );
+                          },
+                          onDelete:
+                              () => _confirmDelete(
+                                context,
+                                ref,
+                                locations[index],
+                              ),
+                        ),
                   ),
                 );
               },
-              loading: () => const Center(
-                child: CircularProgressIndicator(),
-              ),
-              error: (error, _) => Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      Icons.error_outline_rounded,
-                      size: 64,
-                      color: Colors.red[300],
+              loading: () => const Center(child: CircularProgressIndicator()),
+              error:
+                  (error, _) => Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.error_outline_rounded,
+                          size: 64,
+                          color: Colors.red[300],
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          '데이터를 불러오지 못했습니다',
+                          style: theme.textTheme.titleMedium,
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          error.toString(),
+                          style: theme.textTheme.bodySmall,
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 16),
+                        ElevatedButton.icon(
+                          onPressed:
+                              () =>
+                                  ref
+                                      .read(locationListProvider.notifier)
+                                      .refresh(),
+                          icon: const Icon(Icons.refresh),
+                          label: const Text('다시 시도'),
+                        ),
+                      ],
                     ),
-                    const SizedBox(height: 16),
-                    Text(
-                      '데이터를 불러오지 못했습니다',
-                      style: theme.textTheme.titleMedium,
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      error.toString(),
-                      style: theme.textTheme.bodySmall,
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 16),
-                    ElevatedButton.icon(
-                      onPressed: () =>
-                          ref.read(locationListProvider.notifier).refresh(),
-                      icon: const Icon(Icons.refresh),
-                      label: const Text('다시 시도'),
-                    ),
-                  ],
-                ),
-              ),
+                  ),
             ),
           ),
         ],
@@ -189,30 +198,30 @@ class _LocationListScreenState extends ConsumerState<LocationListScreen> {
   ) async {
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('장소 삭제'),
-        content: Text('"${location.name}" 장소를 삭제하시겠습니까?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('취소'),
+      builder:
+          (context) => AlertDialog(
+            title: const Text('장소 삭제'),
+            content: Text('"${location.name}" 장소를 삭제하시겠습니까?'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('취소'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(context, true),
+                style: TextButton.styleFrom(foregroundColor: Colors.red),
+                child: const Text('삭제'),
+              ),
+            ],
           ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('삭제'),
-          ),
-        ],
-      ),
     );
 
-    if (confirmed == true && mounted) {
+    if (confirmed == true) {
       await ref.read(locationListProvider.notifier).deleteLocation(location.id);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('"${location.name}" 삭제됨')),
-        );
-      }
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('"${location.name}" 삭제됨')));
     }
   }
 }
@@ -222,17 +231,11 @@ class _MapBody extends StatelessWidget {
   final List<Location> locations;
   final void Function(Location location) onMarkerTap;
 
-  const _MapBody({
-    required this.locations,
-    required this.onMarkerTap,
-  });
+  const _MapBody({required this.locations, required this.onMarkerTap});
 
   @override
   Widget build(BuildContext context) {
-    return LocationMapView(
-      locations: locations,
-      onMarkerTap: onMarkerTap,
-    );
+    return LocationMapView(locations: locations, onMarkerTap: onMarkerTap);
   }
 }
 
@@ -241,10 +244,7 @@ class _FilterChips extends StatelessWidget {
   final LocationFilter currentFilter;
   final ValueChanged<LocationFilter> onChanged;
 
-  const _FilterChips({
-    required this.currentFilter,
-    required this.onChanged,
-  });
+  const _FilterChips({required this.currentFilter, required this.onChanged});
 
   @override
   Widget build(BuildContext context) {
@@ -254,11 +254,9 @@ class _FilterChips extends StatelessWidget {
         children: [
           _buildChip(context, '전체', LocationFilter.all, Icons.apps_rounded),
           const SizedBox(width: 8),
-          _buildChip(
-              context, '확정', LocationFilter.fixed, Icons.check_circle),
+          _buildChip(context, '확정', LocationFilter.fixed, Icons.check_circle),
           const SizedBox(width: 8),
-          _buildChip(
-              context, '미확정', LocationFilter.unfixed, Icons.pending),
+          _buildChip(context, '미확정', LocationFilter.unfixed, Icons.pending),
         ],
       ),
     );
@@ -293,9 +291,7 @@ class _FilterChips extends StatelessWidget {
         color: isSelected ? Colors.white : theme.colorScheme.onSurface,
         fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
       ),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(20),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       showCheckmark: false,
     );
   }
@@ -332,9 +328,10 @@ class _LocationCard extends StatelessWidget {
                 width: 48,
                 height: 48,
                 decoration: BoxDecoration(
-                  color: location.isFixed
-                      ? AppTheme.pinFixed.withValues(alpha: 0.1)
-                      : AppTheme.pinUnfixed.withValues(alpha: 0.1),
+                  color:
+                      location.isFixed
+                          ? AppTheme.pinFixed.withValues(alpha: 0.1)
+                          : AppTheme.pinUnfixed.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(
@@ -342,7 +339,9 @@ class _LocationCard extends StatelessWidget {
                       ? Icons.location_on_rounded
                       : Icons.location_off_rounded,
                   color:
-                      location.isFixed ? AppTheme.pinFixed : AppTheme.pinUnfixed,
+                      location.isFixed
+                          ? AppTheme.pinFixed
+                          : AppTheme.pinUnfixed,
                 ),
               ),
               const SizedBox(width: 14),
@@ -357,8 +356,9 @@ class _LocationCard extends StatelessWidget {
                         Expanded(
                           child: Text(
                             location.name,
-                            style: theme.textTheme.titleMedium
-                                ?.copyWith(fontWeight: FontWeight.w600),
+                            style: theme.textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.w600,
+                            ),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
@@ -369,9 +369,12 @@ class _LocationCard extends StatelessWidget {
                             vertical: 3,
                           ),
                           decoration: BoxDecoration(
-                            color: location.isFixed
-                                ? AppTheme.pinFixed.withValues(alpha: 0.1)
-                                : AppTheme.pinUnfixed.withValues(alpha: 0.1),
+                            color:
+                                location.isFixed
+                                    ? AppTheme.pinFixed.withValues(alpha: 0.1)
+                                    : AppTheme.pinUnfixed.withValues(
+                                      alpha: 0.1,
+                                    ),
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Text(
@@ -379,9 +382,10 @@ class _LocationCard extends StatelessWidget {
                             style: TextStyle(
                               fontSize: 11,
                               fontWeight: FontWeight.w600,
-                              color: location.isFixed
-                                  ? AppTheme.pinFixed
-                                  : AppTheme.pinUnfixed,
+                              color:
+                                  location.isFixed
+                                      ? AppTheme.pinFixed
+                                      : AppTheme.pinUnfixed,
                             ),
                           ),
                         ),
@@ -414,29 +418,34 @@ class _LocationCard extends StatelessWidget {
               // 액션 메뉴
               PopupMenuButton<String>(
                 icon: const Icon(Icons.more_vert_rounded, size: 20),
-                itemBuilder: (context) => [
-                  if (!location.isFixed)
-                    const PopupMenuItem(
-                      value: 'fix',
-                      child: Row(
-                        children: [
-                          Icon(Icons.map_rounded, size: 18),
-                          SizedBox(width: 8),
-                          Text('위치 설정'),
-                        ],
+                itemBuilder:
+                    (context) => [
+                      if (!location.isFixed)
+                        const PopupMenuItem(
+                          value: 'fix',
+                          child: Row(
+                            children: [
+                              Icon(Icons.map_rounded, size: 18),
+                              SizedBox(width: 8),
+                              Text('위치 설정'),
+                            ],
+                          ),
+                        ),
+                      const PopupMenuItem(
+                        value: 'delete',
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.delete_outline,
+                              size: 18,
+                              color: Colors.red,
+                            ),
+                            SizedBox(width: 8),
+                            Text('삭제', style: TextStyle(color: Colors.red)),
+                          ],
+                        ),
                       ),
-                    ),
-                  const PopupMenuItem(
-                    value: 'delete',
-                    child: Row(
-                      children: [
-                        Icon(Icons.delete_outline, size: 18, color: Colors.red),
-                        SizedBox(width: 8),
-                        Text('삭제', style: TextStyle(color: Colors.red)),
-                      ],
-                    ),
-                  ),
-                ],
+                    ],
                 onSelected: (value) {
                   switch (value) {
                     case 'fix':
@@ -498,10 +507,7 @@ class _EmptyState extends StatelessWidget {
           const SizedBox(height: 20),
           Text(message, style: theme.textTheme.titleMedium),
           const SizedBox(height: 8),
-          Text(
-            '엑셀 파일로 장소를 업로드해보세요',
-            style: theme.textTheme.bodyMedium,
-          ),
+          Text('엑셀 파일로 장소를 업로드해보세요', style: theme.textTheme.bodyMedium),
           const SizedBox(height: 20),
           ElevatedButton.icon(
             onPressed: onUpload,
