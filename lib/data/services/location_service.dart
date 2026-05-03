@@ -136,16 +136,31 @@ class LocationService {
 
   /// 통계 정보 조회
   static Future<Map<String, int>> getStats() async {
-    final all = await _client.from(_tableName).select('id');
-    final fixed =
-        await _client.from(_tableName).select('id').eq('is_fixed', true);
-    final unfixed =
-        await _client.from(_tableName).select('id').eq('is_fixed', false);
+    final totalResponse = await _client.from(_tableName).select(
+          'id',
+          const FetchOptions(count: CountOption.exact, head: true),
+        );
+
+    final fixedResponse = await _client
+        .from(_tableName)
+        .select(
+          'id',
+          const FetchOptions(count: CountOption.exact, head: true),
+        )
+        .eq('is_fixed', true);
+
+    final unfixedResponse = await _client
+        .from(_tableName)
+        .select(
+          'id',
+          const FetchOptions(count: CountOption.exact, head: true),
+        )
+        .eq('is_fixed', false);
 
     return {
-      'total': (all as List).length,
-      'fixed': (fixed as List).length,
-      'unfixed': (unfixed as List).length,
+      'total': totalResponse.count ?? 0,
+      'fixed': fixedResponse.count ?? 0,
+      'unfixed': unfixedResponse.count ?? 0,
     };
   }
 }
