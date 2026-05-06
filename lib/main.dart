@@ -22,10 +22,14 @@ Future<void> main() async {
   );
 
   // 네이버 지도는 Android와 iOS에서만 지원되므로 조건부 초기화
+  // flutter_naver_map 1.3.1+부터 NaverMapSdk.instance.initialize는 Legacy로 deprecated.
+  // 신규 FlutterNaverMap().init을 사용해야 앱이 정상 시작된다.
   if (!kIsWeb && (Platform.isAndroid || Platform.isIOS)) {
-    // ignore: deprecated_member_use
-    await NaverMapSdk.instance.initialize(
-      clientId: dotenv.env['NAVER_MAP_CLIENT_ID']!,
+    await FlutterNaverMap().init(
+      clientId: dotenv.env['NAVER_MAP_CLIENT_ID'],
+      onAuthFailed: (ex) {
+        debugPrint('[NaverMap] 인증 실패: $ex');
+      },
     );
   }
 
