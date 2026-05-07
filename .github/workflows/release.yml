@@ -124,13 +124,53 @@ jobs:
       - name: applicationId 를 com.shi.lunchmap 로 통일
         shell: bash
         run: |
+          # `flutter create --org com.shi .` 는 pubspec 의 프로젝트명(lunch_map) 을
+          # 그대로 패키지명에 사용하므로 applicationId/namespace/소스 패키지가
+          # com.shi.lunch_map 으로 생성된다. NCP 콘솔 및 사이닝 키는
+          # com.shi.lunchmap 로 등록되어 있으므로 모든 레퍼런스를 통일해야 한다.
+          #
+          # 이전에는 build.gradle 과 AndroidManifest.xml 만 치환했고, MainActivity.kt
+          # 의 package 선언과 디렉터리 경로(kotlin/com/shi/lunch_map/...)는 그대로
+          # 두었다. 그 결과 컴파일된 클래스는 com.shi.lunch_map.MainActivity 인데
+          # 매니페스트의 ".MainActivity" 는 namespace 와 결합되어
+          # com.shi.lunchmap.MainActivity 로 해석되어, 앱 실행 직후
+          # ClassNotFoundException 이 발생하고 즉시 강제종료되었다.
+          #
+          # → Gradle/매니페스트와 Kotlin/Java 패키지 선언/디렉터리 경로 모두를
+          #   com.shi.lunchmap 로 일괄 통일한다.
           for f in android/app/build.gradle.kts android/app/build.gradle; do
             [ -f "$f" ] || continue
             sed -i 's/com\.shi\.lunch_map/com.shi.lunchmap/g' "$f"
           done
           # AndroidManifest.xml 의 패키지명도 통일 (구버전 매니페스트 대비)
           sed -i 's/com\.shi\.lunch_map/com.shi.lunchmap/g' android/app/src/main/AndroidManifest.xml || true
+
+          # MainActivity.kt 등 모든 Kotlin/Java 소스 파일의 package 선언/import 치환
+          while IFS= read -r -d '' src; do
+            sed -i 's/com\.shi\.lunch_map/com.shi.lunchmap/g' "$src"
+          done < <(find android/app/src/main/kotlin android/app/src/main/java \
+                     -type f \( -name '*.kt' -o -name '*.java' \) -print0 2>/dev/null)
+
+          # 디렉터리 트리도 com/shi/lunch_map → com/shi/lunchmap 로 이동
+          for root in android/app/src/main/kotlin android/app/src/main/java; do
+            old_dir="$root/com/shi/lunch_map"
+            new_dir="$root/com/shi/lunchmap"
+            if [ -d "$old_dir" ]; then
+              mkdir -p "$new_dir"
+              # 안전을 위해 dotfile 까지 포함 이동
+              find "$old_dir" -mindepth 1 -maxdepth 1 -exec mv -t "$new_dir" {} +
+              rmdir "$old_dir" 2>/dev/null || true
+            fi
+          done
+
           grep -E 'applicationId|namespace' android/app/build.gradle* || true
+          echo "=== Kotlin/Java 패키지 검증 ==="
+          find android/app/src/main \( -name '*.kt' -o -name '*.java' \) \
+            -exec grep -H '^package ' {} + || true
+          if grep -RIn 'com\.shi\.lunch_map' android/app/src/main android/app/build.gradle* 2>/dev/null; then
+            echo "::error::com.shi.lunch_map 잔존 — 패키지 통일 실패"
+            exit 1
+          fi
 
       - name: build.gradle 의 compileSdk / ndkVersion / minSdk 패치
         shell: bash
