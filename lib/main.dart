@@ -11,6 +11,8 @@ import 'app.dart';
 import 'core/bootstrap/startup_config.dart';
 import 'core/bootstrap/startup_failure_app.dart';
 
+export 'app.dart' show LunchMapApp, MyApp;
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
