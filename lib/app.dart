@@ -18,3 +18,7 @@ class LunchMapApp extends StatelessWidget {
     );
   }
 }
+
+class MyApp extends LunchMapApp {
+  const MyApp({super.key});
+}
