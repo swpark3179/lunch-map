@@ -8,30 +8,72 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'app.dart';
+import 'core/bootstrap/startup_config.dart';
+import 'core/bootstrap/startup_failure_app.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // .env 파일 로드
-  await dotenv.load(fileName: '.env');
-
-  // Supabase 초기화
-  await Supabase.initialize(
-    url: dotenv.env['SUPABASE_URL']!,
-    anonKey: dotenv.env['SUPABASE_ANON_KEY']!,
-  );
-
-  // 네이버 지도는 Android와 iOS에서만 지원되므로 조건부 초기화
-  // flutter_naver_map 1.3.1+부터 NaverMapSdk.instance.initialize는 Legacy로 deprecated.
-  // 신규 FlutterNaverMap().init을 사용해야 앱이 정상 시작된다.
-  if (!kIsWeb && (Platform.isAndroid || Platform.isIOS)) {
-    await FlutterNaverMap().init(
-      clientId: dotenv.env['NAVER_MAP_CLIENT_ID'],
-      onAuthFailed: (ex) {
-        debugPrint('[NaverMap] 인증 실패: $ex');
-      },
-    );
+  final startupFailure = await _initializeStartupServices();
+  if (startupFailure != null) {
+    runApp(StartupFailureApp(failure: startupFailure));
+    return;
   }
 
   runApp(const ProviderScope(child: LunchMapApp()));
+}
+
+Future<StartupFailure?> _initializeStartupServices() async {
+  try {
+    await dotenv.load(fileName: '.env');
+
+    final requiresNaverMap = !kIsWeb && (Platform.isAndroid || Platform.isIOS);
+    final config = StartupConfig.fromEnvironment(
+      dotenv.env,
+      requireNaverMapClientId: requiresNaverMap,
+    );
+
+    await Supabase.initialize(
+      url: config.supabaseUrl,
+      anonKey: config.supabaseAnonKey,
+    );
+
+    if (requiresNaverMap) {
+      await FlutterNaverMap().init(
+        clientId: config.naverMapClientId,
+        onAuthFailed: (ex) {
+          debugPrint('[NaverMap] auth failed: $ex');
+        },
+      );
+    }
+
+    return null;
+  } on StartupConfigurationException catch (error, stackTrace) {
+    FlutterError.reportError(
+      FlutterErrorDetails(
+        exception: error,
+        stack: stackTrace,
+        library: 'startup',
+        context: ErrorDescription('validating startup configuration'),
+      ),
+    );
+    return StartupFailure(
+      title: 'Startup configuration is incomplete',
+      detail: error.message,
+    );
+  } catch (error, stackTrace) {
+    FlutterError.reportError(
+      FlutterErrorDetails(
+        exception: error,
+        stack: stackTrace,
+        library: 'startup',
+        context: ErrorDescription('initializing startup services'),
+      ),
+    );
+    return StartupFailure(
+      title: 'Lunch Map could not start',
+      detail: 'Startup services failed to initialize. Check the device logs for '
+          'the detailed startup error.',
+    );
+  }
 }

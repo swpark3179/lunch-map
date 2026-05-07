@@ -101,6 +101,21 @@ jobs:
           NAVER_MAP_CLIENT_ID=${{ secrets.NAVER_MAP_CLIENT_ID }}
           EOF
 
+      - name: Android release secrets fail-fast
+        shell: bash
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          NAVER_MAP_CLIENT_ID: ${{ secrets.NAVER_MAP_CLIENT_ID }}
+        run: |
+          set -euo pipefail
+          for key in SUPABASE_URL SUPABASE_ANON_KEY NAVER_MAP_CLIENT_ID; do
+            if [ -z "${!key}" ]; then
+              echo "::error::$key is required for Android release startup"
+              exit 1
+            fi
+          done
+
       - name: 플랫폼 폴더 보장 (없으면 생성)
         shell: bash
         run: |
@@ -208,11 +223,37 @@ jobs:
         shell: bash
         run: |
           MANIFEST=android/app/src/main/AndroidManifest.xml
-          if ! grep -q 'android.permission.INTERNET' "$MANIFEST"; then
-            sed -i '0,/<application/{s|<application|<uses-permission android:name="android.permission.INTERNET" />\n    <application|}' "$MANIFEST"
-          fi
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path('android/app/src/main/AndroidManifest.xml')
+          content = path.read_text(encoding='utf-8')
+          permissions = [
+              'android.permission.INTERNET',
+              'android.permission.ACCESS_FINE_LOCATION',
+              'android.permission.ACCESS_COARSE_LOCATION',
+          ]
+          insert = ''.join(
+              f'    <uses-permission android:name="{permission}" />\n'
+              for permission in permissions
+              if permission not in content
+          )
+          if insert:
+              content = content.replace('    <application', insert + '    <application', 1)
+              path.write_text(content, encoding='utf-8')
+          PY
+
+      - name: Android release config validation
+        shell: bash
+        run: bash ci/validate_android_release.sh
 
       - run: flutter pub get
+
+      - name: Android startup regression tests
+        shell: bash
+        run: |
+          flutter analyze
+          flutter test
 
       - name: 런처 아이콘 생성 (assets/icon/app_icon.png → mipmap)
         # pubspec.yaml 의 통합 설정은 모든 플랫폼을 대상으로 하므로,
@@ -222,7 +263,11 @@ jobs:
         # 모든 파일을 일괄 실행해 버리는 부작용이 있다.
         run: dart run flutter_launcher_icons -f ci/launcher_icons/android.yaml
 
-      - run: flutter build apk --release
+      - name: Build Android release APK
+        shell: bash
+        env:
+          NAVER_MAP_CLIENT_ID: ${{ secrets.NAVER_MAP_CLIENT_ID }}
+        run: flutter build apk --release
 
       - name: 산출물 이름 변경
         shell: bash
