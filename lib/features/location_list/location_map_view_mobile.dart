@@ -57,15 +57,13 @@ class _LocationMapViewState extends State<LocationMapView> {
       ),
       onMapReady: (controller) async {
         _controller = controller;
-        await addSamsungRearGateOverlay(controller);
         await _redrawMarkers(controller);
       },
     );
   }
 
   Future<void> _redrawMarkers(NaverMapController controller) async {
-    await controller.clearOverlays(type: NOverlayType.marker);
-    // 삼성중공업 후문 마커는 별도 id 라 다시 그려야 함
+    await controller.clearOverlays();
     await addSamsungRearGateOverlay(controller);
 
     final markers = <NMarker>{};

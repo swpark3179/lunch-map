@@ -60,14 +60,15 @@ class _MapPickerBodyState extends State<MapPickerBody> {
         _controller = controller;
         addSamsungRearGateOverlay(controller);
       },
-      onCameraIdle: () {
+      onCameraIdle: () async {
         if (_controller != null) {
-          // ignore: experimental_member_use
-          final position = _controller!.nowCameraPosition;
-          widget.onCameraIdle(
-            position.target.latitude,
-            position.target.longitude,
-          );
+          final position = await _controller!.getCameraPosition();
+          if (mounted) {
+            widget.onCameraIdle(
+              position.target.latitude,
+              position.target.longitude,
+            );
+          }
         }
       },
     );
