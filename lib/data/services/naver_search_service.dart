@@ -1,6 +1,9 @@
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'dart:convert';
 
-/// 네이버 Local Search API로부터 파싱한 식당 메뉴 정보
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:http/http.dart' as http;
+
+/// 네이버 Local Search API로부터 파싱한 식당 정보
 class NaverPlaceInfo {
   final String title;
   final String category;
@@ -33,19 +36,30 @@ class NaverPlaceInfo {
 }
 
 class NaverSearchService {
-  static final _client = Supabase.instance.client;
-
   /// 거제 + [restaurantName] 으로 네이버 장소 검색 후 메뉴 정보 반환.
-  /// 검색 결과 중 식당 이름이 가장 유사한 항목을 선택한다.
   static Future<NaverPlaceInfo?> fetchPlaceInfo(String restaurantName) async {
-    final response = await _client.functions.invoke(
-      'naver-search',
-      body: {'query': '거제 $restaurantName'},
+    final clientId = dotenv.env['NAVER_CLIENT_ID'] ?? '';
+    final clientSecret = dotenv.env['NAVER_CLIENT_SECRET'] ?? '';
+
+    if (clientId.isEmpty || clientSecret.isEmpty) return null;
+
+    final uri = Uri.parse(
+      'https://openapi.naver.com/v1/search/local.json'
+      '?query=${Uri.encodeQueryComponent('거제 $restaurantName')}'
+      '&display=5&sort=comment',
     );
 
-    final data = response.data;
-    if (data == null) return null;
+    final response = await http.get(
+      uri,
+      headers: {
+        'X-Naver-Client-Id': clientId,
+        'X-Naver-Client-Secret': clientSecret,
+      },
+    );
 
+    if (response.statusCode != 200) return null;
+
+    final data = jsonDecode(response.body) as Map<String, dynamic>;
     final items = data['items'] as List?;
     if (items == null || items.isEmpty) return null;
 
