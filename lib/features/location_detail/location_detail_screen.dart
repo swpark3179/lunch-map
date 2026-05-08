@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/theme/app_theme.dart';
 import '../../data/models/location.dart';
 import '../../data/services/location_service.dart';
+import '../../data/services/naver_search_service.dart';
 
 /// 장소 상세 화면
 class LocationDetailScreen extends ConsumerStatefulWidget {
@@ -21,6 +22,9 @@ class _LocationDetailScreenState extends ConsumerState<LocationDetailScreen> {
   Location? _location;
   bool _isLoading = true;
   String? _error;
+
+  NaverPlaceInfo? _placeInfo;
+  bool _isMenuLoading = false;
 
   @override
   void initState() {
@@ -39,11 +43,29 @@ class _LocationDetailScreenState extends ConsumerState<LocationDetailScreen> {
         _location = location;
         _isLoading = false;
       });
+      if (location != null) {
+        _loadMenu(location.name);
+      }
     } catch (e) {
       setState(() {
         _error = e.toString();
         _isLoading = false;
       });
+    }
+  }
+
+  Future<void> _loadMenu(String restaurantName) async {
+    setState(() => _isMenuLoading = true);
+    try {
+      final info = await NaverSearchService.fetchPlaceInfo(restaurantName);
+      if (mounted) {
+        setState(() {
+          _placeInfo = info;
+          _isMenuLoading = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) setState(() => _isMenuLoading = false);
     }
   }
 
@@ -281,6 +303,15 @@ class _LocationDetailScreenState extends ConsumerState<LocationDetailScreen> {
                   ],
                 ),
               ),
+
+            const SizedBox(height: 16),
+
+            // ── 메뉴 정보 ──
+            _MenuSection(
+              isLoading: _isMenuLoading,
+              placeInfo: _placeInfo,
+              onRetry: () => _loadMenu(location.name),
+            ),
           ],
         ),
       ),
@@ -290,6 +321,189 @@ class _LocationDetailScreenState extends ConsumerState<LocationDetailScreen> {
   String _formatDate(DateTime date) {
     return '${date.year}년 ${date.month}월 ${date.day}일 '
         '${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
+  }
+}
+
+// ─── 메뉴 섹션 ───
+class _MenuSection extends StatelessWidget {
+  final bool isLoading;
+  final NaverPlaceInfo? placeInfo;
+  final VoidCallback onRetry;
+
+  const _MenuSection({
+    required this.isLoading,
+    required this.placeInfo,
+    required this.onRetry,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  Icons.restaurant_menu_rounded,
+                  size: 20,
+                  color: theme.colorScheme.primary,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  '메뉴 정보',
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const Spacer(),
+                Text(
+                  '출처: 네이버',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            if (isLoading)
+              const Center(
+                child: Padding(
+                  padding: EdgeInsets.symmetric(vertical: 16),
+                  child: CircularProgressIndicator(),
+                ),
+              )
+            else if (placeInfo == null)
+              _EmptyMenu(onRetry: onRetry)
+            else
+              _PlaceInfoContent(placeInfo: placeInfo!),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _PlaceInfoContent extends StatelessWidget {
+  final NaverPlaceInfo placeInfo;
+
+  const _PlaceInfoContent({required this.placeInfo});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (placeInfo.category.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 10),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(
+                  Icons.category_outlined,
+                  size: 18,
+                  color: theme.colorScheme.primary,
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    placeInfo.category,
+                    style: theme.textTheme.bodyMedium,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        if (placeInfo.telephone.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 10),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(
+                  Icons.phone_outlined,
+                  size: 18,
+                  color: theme.colorScheme.primary,
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    placeInfo.telephone,
+                    style: theme.textTheme.bodyMedium,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        if (placeInfo.hasDescription) ...[
+          const Divider(height: 20),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(
+                Icons.menu_book_outlined,
+                size: 18,
+                color: theme.colorScheme.primary,
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  placeInfo.description,
+                  style: theme.textTheme.bodyMedium,
+                ),
+              ),
+            ],
+          ),
+        ] else
+          Text(
+            '메뉴 설명 정보가 없습니다',
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+class _EmptyMenu extends StatelessWidget {
+  final VoidCallback onRetry;
+
+  const _EmptyMenu({required this.onRetry});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Column(
+      children: [
+        Icon(
+          Icons.search_off_rounded,
+          size: 40,
+          color: theme.colorScheme.onSurfaceVariant,
+        ),
+        const SizedBox(height: 8),
+        Text(
+          '메뉴 정보를 불러올 수 없습니다',
+          style: theme.textTheme.bodyMedium?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
+        ),
+        const SizedBox(height: 12),
+        TextButton.icon(
+          onPressed: onRetry,
+          icon: const Icon(Icons.refresh_rounded, size: 16),
+          label: const Text('다시 시도'),
+        ),
+      ],
+    );
   }
 }
 
