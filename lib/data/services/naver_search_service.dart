@@ -1,12 +1,40 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-/// 네이버 Local Search API로부터 파싱한 식당 메뉴 정보
+class NaverMenuItem {
+  final String name;
+  final String price;
+  final String description;
+  final String imageUrl;
+
+  const NaverMenuItem({
+    required this.name,
+    required this.price,
+    required this.description,
+    required this.imageUrl,
+  });
+
+  factory NaverMenuItem.fromJson(Map<String, dynamic> json) {
+    return NaverMenuItem(
+      name: json['name'] as String? ?? '',
+      price: json['price'] as String? ?? '',
+      description: json['description'] as String? ?? '',
+      imageUrl: json['imageUrl'] as String? ?? '',
+    );
+  }
+
+  bool get hasPrice => price.isNotEmpty;
+}
+
+/// 네이버 Local Search API로부터 파싱한 식당 정보
 class NaverPlaceInfo {
   final String title;
   final String category;
   final String description;
   final String telephone;
   final String roadAddress;
+  final String link;
+  final String? placeId;
+  final List<NaverMenuItem> menus;
 
   const NaverPlaceInfo({
     required this.title,
@@ -14,29 +42,37 @@ class NaverPlaceInfo {
     required this.description,
     required this.telephone,
     required this.roadAddress,
+    this.link = '',
+    this.placeId,
+    this.menus = const [],
   });
 
   factory NaverPlaceInfo.fromJson(Map<String, dynamic> json) {
+    final rawMenus = json['menus'] as List<dynamic>? ?? [];
     return NaverPlaceInfo(
-      title: _stripHtml(json['title'] as String? ?? ''),
+      title: json['title'] as String? ?? '',
       category: json['category'] as String? ?? '',
       description: json['description'] as String? ?? '',
       telephone: json['telephone'] as String? ?? '',
       roadAddress: json['roadAddress'] as String? ?? '',
+      link: json['link'] as String? ?? '',
+      placeId: json['placeId'] as String?,
+      menus: rawMenus
+          .whereType<Map<String, dynamic>>()
+          .map(NaverMenuItem.fromJson)
+          .where((m) => m.name.isNotEmpty)
+          .toList(),
     );
   }
 
+  bool get hasMenus => menus.isNotEmpty;
   bool get hasDescription => description.isNotEmpty;
-
-  static String _stripHtml(String html) =>
-      html.replaceAll(RegExp(r'<[^>]*>'), '');
 }
 
 class NaverSearchService {
   static final _client = Supabase.instance.client;
 
-  /// 거제 + [restaurantName] 으로 네이버 장소 검색 후 메뉴 정보 반환.
-  /// 검색 결과 중 식당 이름이 가장 유사한 항목을 선택한다.
+  /// 거제 + [restaurantName] 으로 네이버 장소 검색 후 정보 반환.
   static Future<NaverPlaceInfo?> fetchPlaceInfo(String restaurantName) async {
     final response = await _client.functions.invoke(
       'naver-search',
@@ -45,24 +81,17 @@ class NaverSearchService {
 
     final data = response.data;
     if (data == null) return null;
+    if (data is! Map<String, dynamic>) return null;
+    if (data.containsKey('error')) return null;
 
+    // 새 응답 형식: 단일 객체 (title, menus 등)
+    if (data.containsKey('title')) {
+      return NaverPlaceInfo.fromJson(data);
+    }
+
+    // 이전 형식 호환: { items: [...] }
     final items = data['items'] as List?;
     if (items == null || items.isEmpty) return null;
-
-    // 이름이 가장 잘 매칭되는 항목 선택
-    final nameLower = restaurantName.toLowerCase();
-    Map<String, dynamic>? best;
-    for (final item in items) {
-      final title = NaverPlaceInfo._stripHtml(
-        (item['title'] as String? ?? ''),
-      ).toLowerCase();
-      if (title.contains(nameLower) || nameLower.contains(title)) {
-        best = item as Map<String, dynamic>;
-        break;
-      }
-    }
-    best ??= items.first as Map<String, dynamic>;
-
-    return NaverPlaceInfo.fromJson(best);
+    return NaverPlaceInfo.fromJson(items.first as Map<String, dynamic>);
   }
 }

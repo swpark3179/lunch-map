@@ -406,17 +406,10 @@ class _PlaceInfoContent extends StatelessWidget {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(
-                  Icons.category_outlined,
-                  size: 18,
-                  color: theme.colorScheme.primary,
-                ),
+                Icon(Icons.category_outlined, size: 18, color: theme.colorScheme.primary),
                 const SizedBox(width: 10),
                 Expanded(
-                  child: Text(
-                    placeInfo.category,
-                    style: theme.textTheme.bodyMedium,
-                  ),
+                  child: Text(placeInfo.category, style: theme.textTheme.bodyMedium),
                 ),
               ],
             ),
@@ -427,49 +420,116 @@ class _PlaceInfoContent extends StatelessWidget {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(
-                  Icons.phone_outlined,
-                  size: 18,
-                  color: theme.colorScheme.primary,
-                ),
+                Icon(Icons.phone_outlined, size: 18, color: theme.colorScheme.primary),
                 const SizedBox(width: 10),
                 Expanded(
-                  child: Text(
-                    placeInfo.telephone,
-                    style: theme.textTheme.bodyMedium,
-                  ),
+                  child: Text(placeInfo.telephone, style: theme.textTheme.bodyMedium),
                 ),
               ],
             ),
           ),
-        if (placeInfo.hasDescription) ...[
+        // 구조화된 메뉴 목록
+        if (placeInfo.hasMenus) ...[
+          const Divider(height: 20),
+          Row(
+            children: [
+              Icon(Icons.menu_book_outlined, size: 18, color: theme.colorScheme.primary),
+              const SizedBox(width: 8),
+              Text(
+                '메뉴',
+                style: theme.textTheme.labelLarge?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          ...placeInfo.menus.map((menu) => _MenuItemRow(menu: menu)),
+        ] else if (placeInfo.hasDescription) ...[
           const Divider(height: 20),
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(
-                Icons.menu_book_outlined,
-                size: 18,
-                color: theme.colorScheme.primary,
-              ),
+              Icon(Icons.menu_book_outlined, size: 18, color: theme.colorScheme.primary),
               const SizedBox(width: 10),
               Expanded(
-                child: Text(
-                  placeInfo.description,
-                  style: theme.textTheme.bodyMedium,
-                ),
+                child: Text(placeInfo.description, style: theme.textTheme.bodyMedium),
               ),
             ],
           ),
         ] else
           Text(
-            '메뉴 설명 정보가 없습니다',
+            '메뉴 정보가 없습니다',
             style: theme.textTheme.bodyMedium?.copyWith(
               color: theme.colorScheme.onSurfaceVariant,
             ),
           ),
       ],
     );
+  }
+}
+
+class _MenuItemRow extends StatelessWidget {
+  final NaverMenuItem menu;
+
+  const _MenuItemRow({required this.menu});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  menu.name,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                if (menu.description.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 2),
+                    child: Text(
+                      menu.description,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          if (menu.hasPrice) ...[
+            const SizedBox(width: 12),
+            Text(
+              _formatPrice(menu.price),
+              style: theme.textTheme.bodyMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+                color: theme.colorScheme.primary,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  String _formatPrice(String price) {
+    final num = int.tryParse(price.replaceAll(RegExp(r'[^0-9]'), ''));
+    if (num == null) return price;
+    // 천 단위 콤마
+    final formatted = num.toString().replaceAllMapped(
+      RegExp(r'(\d)(?=(\d{3})+$)'),
+      (m) => '${m[1]},',
+    );
+    return '${formatted}원';
   }
 }
 
