@@ -75,7 +75,7 @@ class _MapPickerBodyState extends State<MapPickerBody> {
   }
 }
 
-/// "삼성중공업 후문" 영역 + 라벨을 지도 위에 표시
+/// "삼성중공업 후문" 영역을 지도 위에 표시 (핀 아이콘 없이 동그란 영역만)
 Future<void> addSamsungRearGateOverlay(NaverMapController controller) async {
   if (!Platform.isAndroid && !Platform.isIOS) return;
 
@@ -91,17 +91,5 @@ Future<void> addSamsungRearGateOverlay(NaverMapController controller) async {
     outlineWidth: 2,
   );
 
-  final marker = NMarker(
-    id: 'samsung_rear_gate_marker',
-    position: const NLatLng(kSamsungRearGateLat, kSamsungRearGateLng),
-    caption: const NOverlayCaption(
-      text: kSamsungRearGateLabel,
-      textSize: 14,
-      color: Color(0xFF0F172A),
-      haloColor: Colors.white,
-    ),
-    iconTintColor: const Color(0xFF2563EB),
-  );
-
-  await controller.addOverlayAll({area, marker});
+  await controller.addOverlay(area);
 }

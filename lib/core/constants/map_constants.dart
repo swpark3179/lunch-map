@@ -16,6 +16,3 @@ const double kSamsungRearGateLng = 128.604391;
 
 /// 영역 반경 (m)
 const double kSamsungRearGateRadiusMeters = 25;
-
-/// 영역 라벨
-const String kSamsungRearGateLabel = '삼성중공업 후문';
