@@ -75,7 +75,7 @@ class _MapPickerBodyState extends State<MapPickerBody> {
   }
 }
 
-/// "삼성중공업 후문" 영역을 지도 위에 표시 (핀 아이콘 없이 동그란 영역만)
+/// "삼성중공업 후문" 영역 + 기본 경로 영역을 지도 위에 표시
 Future<void> addSamsungRearGateOverlay(NaverMapController controller) async {
   if (!Platform.isAndroid && !Platform.isIOS) return;
 
@@ -91,5 +91,20 @@ Future<void> addSamsungRearGateOverlay(NaverMapController controller) async {
     outlineWidth: 2,
   );
 
+  // 기본 경로 영역: 지정 좌표를 순서대로 이은 뒤 후문 영역 중심과 자연스럽게 연결
+  final pathwayCoords = <NLatLng>[
+    for (final p in kDefaultPathwayCoords) NLatLng(p[0], p[1]),
+    const NLatLng(kSamsungRearGateLat, kSamsungRearGateLng),
+  ];
+  final pathway = NPathOverlay(
+    id: 'default_pathway_area',
+    coords: pathwayCoords,
+    color: const Color(0x552563EB),
+    outlineColor: const Color(0x552563EB),
+    width: 10,
+    outlineWidth: 0,
+  );
+
+  await controller.addOverlay(pathway);
   await controller.addOverlay(area);
 }

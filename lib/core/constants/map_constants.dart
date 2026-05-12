@@ -14,5 +14,14 @@ const double kDefaultZoom = 17;
 const double kSamsungRearGateLat = 34.892958;
 const double kSamsungRearGateLng = 128.604391;
 
-/// 영역 반경 (m)
-const double kSamsungRearGateRadiusMeters = 25;
+/// 영역 반경 (m) — 경로 두께와 자연스럽게 이어지도록 기존 25m의 1/4 크기
+const double kSamsungRearGateRadiusMeters = 6.25;
+
+/// 기본 경로 영역 좌표 (위도, 경도 순서). 순서대로 이어진다.
+const List<List<double>> kDefaultPathwayCoords = <List<double>>[
+  <double>[34.895393, 128.600724],
+  <double>[34.895109, 128.600963],
+  <double>[34.895230, 128.601190],
+  <double>[34.894855, 128.601790],
+  <double>[34.892936, 128.604444],
+];
