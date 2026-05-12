@@ -118,7 +118,7 @@ class _LocationListScreenState extends ConsumerState<LocationListScreen> {
                 if (locations.isEmpty) {
                   return _EmptyState(
                     filter: currentFilter,
-                    onUpload: () => context.go('/upload'),
+                    onAdd: () => context.go('/map-picker'),
                   );
                 }
                 return RefreshIndicator(
@@ -468,9 +468,9 @@ class _LocationCard extends StatelessWidget {
 // ─── 빈 상태 ───
 class _EmptyState extends StatelessWidget {
   final LocationFilter filter;
-  final VoidCallback onUpload;
+  final VoidCallback onAdd;
 
-  const _EmptyState({required this.filter, required this.onUpload});
+  const _EmptyState({required this.filter, required this.onAdd});
 
   @override
   Widget build(BuildContext context) {
@@ -507,12 +507,12 @@ class _EmptyState extends StatelessWidget {
           const SizedBox(height: 20),
           Text(message, style: theme.textTheme.titleMedium),
           const SizedBox(height: 8),
-          Text('엑셀 파일로 장소를 업로드해보세요', style: theme.textTheme.bodyMedium),
+          Text('지도에서 장소를 추가해보세요', style: theme.textTheme.bodyMedium),
           const SizedBox(height: 20),
           ElevatedButton.icon(
-            onPressed: onUpload,
-            icon: const Icon(Icons.upload_file_rounded),
-            label: const Text('엑셀 업로드'),
+            onPressed: onAdd,
+            icon: const Icon(Icons.add_location_alt_rounded),
+            label: const Text('지도에서 등록'),
           ),
         ],
       ),

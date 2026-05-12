@@ -57,14 +57,6 @@ class LocationService {
     return Location.fromJson(response);
   }
 
-  /// 장소 일괄 추가 (엑셀 업로드용)
-  static Future<List<Location>> insertBatch(List<Location> locations) async {
-    final data = locations.map((l) => l.toJson()).toList();
-    final response = await _client.from(_tableName).insert(data).select();
-
-    return (response as List).map((json) => Location.fromJson(json)).toList();
-  }
-
   /// 장소 업데이트
   static Future<Location> update(String id, Location location) async {
     final data = location.toJson();

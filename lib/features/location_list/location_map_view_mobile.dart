@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_naver_map/flutter_naver_map.dart';
+import 'package:geolocator/geolocator.dart';
 
 import '../../core/constants/map_constants.dart';
 import '../../core/theme/app_theme.dart';
@@ -25,6 +26,7 @@ class LocationMapView extends StatefulWidget {
 
 class _LocationMapViewState extends State<LocationMapView> {
   NaverMapController? _controller;
+  bool _isLocating = false;
 
   @override
   void didUpdateWidget(covariant LocationMapView oldWidget) {
@@ -44,21 +46,110 @@ class _LocationMapViewState extends State<LocationMapView> {
         onMarkerTap: widget.onMarkerTap,
       );
     }
-    return NaverMap(
-      options: NaverMapViewOptions(
-        initialCameraPosition: const NCameraPosition(
-          target: NLatLng(kDefaultLat, kDefaultLng),
-          zoom: kDefaultZoom,
+    return Stack(
+      children: [
+        NaverMap(
+          options: NaverMapViewOptions(
+            initialCameraPosition: const NCameraPosition(
+              target: NLatLng(kDefaultLat, kDefaultLng),
+              zoom: kDefaultZoom,
+            ),
+            mapType: NMapType.basic,
+            activeLayerGroups: const [NLayerGroup.building, NLayerGroup.transit],
+            locationButtonEnable: false,
+            consumeSymbolTapEvents: false,
+          ),
+          onMapReady: (controller) async {
+            _controller = controller;
+            await _redrawMarkers(controller);
+          },
         ),
-        mapType: NMapType.basic,
-        activeLayerGroups: const [NLayerGroup.building, NLayerGroup.transit],
-        locationButtonEnable: true,
-        consumeSymbolTapEvents: false,
-      ),
-      onMapReady: (controller) async {
-        _controller = controller;
-        await _redrawMarkers(controller);
-      },
+        Positioned(
+          right: 16,
+          bottom: 16,
+          child: FloatingActionButton(
+            heroTag: 'my_location_btn',
+            backgroundColor: Colors.white,
+            foregroundColor: Theme.of(context).colorScheme.primary,
+            onPressed: _isLocating ? null : _moveToMyLocation,
+            tooltip: '내 위치',
+            child:
+                _isLocating
+                    ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                    : const Icon(Icons.my_location_rounded),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _moveToMyLocation() async {
+    final controller = _controller;
+    if (controller == null) return;
+
+    setState(() => _isLocating = true);
+    try {
+      final position = await _resolveCurrentPosition();
+      if (position == null) return;
+
+      final target = NLatLng(position.latitude, position.longitude);
+      await controller.updateCamera(
+        NCameraUpdate.withParams(target: target, zoom: kDefaultZoom),
+      );
+
+      final marker = NCircleOverlay(
+        id: 'my_location',
+        center: target,
+        radius: 8,
+        color: const Color(0xFF2563EB),
+        outlineColor: Colors.white,
+        outlineWidth: 3,
+      );
+      await controller.deleteOverlay(
+        NOverlayInfo(type: NOverlayType.circleOverlay, id: 'my_location'),
+      );
+      await controller.addOverlay(marker);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('현재 위치를 가져오지 못했습니다: $e')),
+      );
+    } finally {
+      if (mounted) setState(() => _isLocating = false);
+    }
+  }
+
+  Future<Position?> _resolveCurrentPosition() async {
+    final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('위치 서비스를 켜주세요.')),
+        );
+      }
+      return null;
+    }
+
+    var permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+    }
+    if (permission == LocationPermission.denied ||
+        permission == LocationPermission.deniedForever) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('위치 권한이 필요합니다.')),
+        );
+      }
+      return null;
+    }
+
+    return Geolocator.getCurrentPosition(
+      locationSettings: const LocationSettings(accuracy: LocationAccuracy.high),
     );
   }
 

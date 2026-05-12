@@ -160,7 +160,7 @@ class _HeroHeader extends StatelessWidget {
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
-                    '엑셀로 장소를 대량 등록하고, 지도에서 정확한 위치를 설정하세요.',
+                    '지도에서 장소를 등록하고 내 주변 맛집을 한눈에 확인하세요.',
                     style: TextStyle(
                       fontSize: 13,
                       color: Colors.white.withValues(alpha: 0.9),
@@ -320,13 +320,6 @@ class _QuickActions extends StatelessWidget {
           color: const Color(0xFF10B981),
           route: '/map-picker',
         ),
-      _ActionData(
-        title: '엑셀 업로드',
-        subtitle: '.xlsx 파일로 대량 등록합니다',
-        icon: Icons.upload_file_rounded,
-        color: const Color(0xFF7C3AED),
-        route: '/upload',
-      ),
     ];
 
     return Padding(

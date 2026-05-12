@@ -86,13 +86,6 @@ class LocationListNotifier extends AsyncNotifier<List<Location>> {
     await refresh();
   }
 
-  /// 장소 일괄 추가
-  Future<int> addLocationsBatch(List<Location> locations) async {
-    final result = await LocationService.insertBatch(locations);
-    await refresh();
-    return result.length;
-  }
-
   /// 장소 업데이트
   Future<void> updateLocation(String id, Location location) async {
     await LocationService.update(id, location);
