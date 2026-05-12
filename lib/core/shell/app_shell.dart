@@ -14,7 +14,6 @@ class AppShell extends StatelessWidget {
       return 1;
     }
     if (location.startsWith('/map-picker')) return 2;
-    if (location.startsWith('/upload')) return 3;
     return 0;
   }
 
@@ -68,11 +67,6 @@ class _MobileBottomNav extends StatelessWidget {
             selectedIcon: Icon(Icons.map_rounded),
             label: '지도 등록',
           ),
-          NavigationDestination(
-            icon: Icon(Icons.upload_file_outlined),
-            selectedIcon: Icon(Icons.upload_file_rounded),
-            label: '엑셀 업로드',
-          ),
         ],
       ),
     );
@@ -88,9 +82,6 @@ class _MobileBottomNav extends StatelessWidget {
         break;
       case 2:
         context.go('/map-picker');
-        break;
-      case 3:
-        context.go('/upload');
         break;
     }
   }
