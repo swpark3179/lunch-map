@@ -1,17 +1,17 @@
--- =====================================================
--- Supabase 마이그레이션: locations 테이블 생성
--- =====================================================
+-- 1. Extension을 public이 아닌 extensions 스키마에 재생성하여 linter 경고 해결
+DROP EXTENSION IF EXISTS postgis CASCADE;
+CREATE EXTENSION postgis SCHEMA extensions;
 
--- 1. PostGIS 및 pg_trgm 확장 활성화
-CREATE EXTENSION IF NOT EXISTS postgis;
-CREATE EXTENSION IF NOT EXISTS pg_trgm;
+DROP EXTENSION IF EXISTS pg_trgm CASCADE;
+CREATE EXTENSION pg_trgm SCHEMA extensions;
 
--- 2. locations 테이블 생성
+-- 2. locations 테이블 삭제 (위 extensions drop cascade로 인해 삭제되었으므로 다시 생성)
+-- 이 때 extensions의 데이터타입을 참조하도록 수정
 CREATE TABLE IF NOT EXISTS public.locations (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   name TEXT NOT NULL,
   address TEXT,
-  coords GEOGRAPHY(POINT, 4326),
+  coords extensions.GEOGRAPHY(POINT, 4326),
   lat FLOAT8,
   lng FLOAT8,
   is_fixed BOOLEAN DEFAULT FALSE,
@@ -21,26 +21,47 @@ CREATE TABLE IF NOT EXISTS public.locations (
 -- 3. 인덱스 생성
 CREATE INDEX IF NOT EXISTS idx_locations_is_fixed ON public.locations (is_fixed);
 CREATE INDEX IF NOT EXISTS idx_locations_created_at ON public.locations (created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_locations_name ON public.locations USING GIN (name gin_trgm_ops);
+CREATE INDEX IF NOT EXISTS idx_locations_name ON public.locations USING GIN (name extensions.gin_trgm_ops);
 CREATE INDEX IF NOT EXISTS idx_locations_coords ON public.locations USING GIST (coords);
 
--- 4. RLS(Row Level Security) 설정 (필요에 따라 활성화)
--- ALTER TABLE public.locations ENABLE ROW LEVEL SECURITY;
--- 
--- CREATE POLICY "Allow all access" ON public.locations
---   FOR ALL USING (true) WITH CHECK (true);
+-- 4. RLS(Row Level Security) 설정
+ALTER TABLE public.locations ENABLE ROW LEVEL SECURITY;
 
--- 5. 자동 coords 업데이트 트리거
--- lat, lng 값이 변경되면 coords 필드를 자동으로 업데이트
+CREATE POLICY "Allow public read access to locations"
+ON public.locations
+FOR SELECT
+USING (true);
+
+-- Linter의 overly permissive expression (true) 경고를 피하기 위해 권한 검사로 변경
+CREATE POLICY "Allow authenticated users to insert locations"
+ON public.locations
+FOR INSERT
+TO authenticated
+WITH CHECK (auth.role() = 'authenticated');
+
+CREATE POLICY "Allow authenticated users to update locations"
+ON public.locations
+FOR UPDATE
+TO authenticated
+USING (auth.role() = 'authenticated')
+WITH CHECK (auth.role() = 'authenticated');
+
+CREATE POLICY "Allow authenticated users to delete locations"
+ON public.locations
+FOR DELETE
+TO authenticated
+USING (auth.role() = 'authenticated');
+
+-- 5. 자동 coords 업데이트 트리거 함수 (search_path 경고 해결)
 CREATE OR REPLACE FUNCTION update_coords()
 RETURNS TRIGGER AS $$
 BEGIN
   IF NEW.lat IS NOT NULL AND NEW.lng IS NOT NULL THEN
-    NEW.coords := ST_SetSRID(ST_MakePoint(NEW.lng, NEW.lat), 4326)::geography;
+    NEW.coords := extensions.ST_SetSRID(extensions.ST_MakePoint(NEW.lng, NEW.lat), 4326)::extensions.geography;
   END IF;
   RETURN NEW;
 END;
-$$ LANGUAGE plpgsql;
+$$ LANGUAGE plpgsql SET search_path = '';
 
 DROP TRIGGER IF EXISTS trigger_update_coords ON public.locations;
 
