@@ -45,7 +45,7 @@ class _LocationDetailScreenState extends ConsumerState<LocationDetailScreen> {
         _isLoading = false;
       });
       if (location != null) {
-        _loadMenu(location.name);
+        _loadMenu(location.name, lat: location.lat, lng: location.lng);
       }
     } catch (e) {
       setState(() {
@@ -55,10 +55,18 @@ class _LocationDetailScreenState extends ConsumerState<LocationDetailScreen> {
     }
   }
 
-  Future<void> _loadMenu(String restaurantName) async {
+  Future<void> _loadMenu(
+    String restaurantName, {
+    double? lat,
+    double? lng,
+  }) async {
     setState(() => _isMenuLoading = true);
     try {
-      final info = await NaverSearchService.fetchPlaceInfo(restaurantName);
+      final info = await NaverSearchService.fetchPlaceInfo(
+        restaurantName,
+        lat: lat,
+        lng: lng,
+      );
       if (mounted) {
         setState(() {
           _placeInfo = info;
@@ -311,7 +319,7 @@ class _LocationDetailScreenState extends ConsumerState<LocationDetailScreen> {
             _MenuSection(
               isLoading: _isMenuLoading,
               placeInfo: _placeInfo,
-              onRetry: () => _loadMenu(location.name),
+              onRetry: () => _loadMenu(location.name, lat: location.lat, lng: location.lng),
             ),
           ],
         ),
