@@ -123,31 +123,46 @@ class _MapPickerScreenState extends ConsumerState<MapPickerScreen> {
               ),
               ElevatedButton(
                 onPressed: () async {
-                  if (nameCtl.text.trim().isEmpty) return;
+                  final name = nameCtl.text.trim();
+                  if (name.isEmpty) return;
+                  final addr =
+                      addrCtl.text.trim().isEmpty ? null : addrCtl.text.trim();
                   Navigator.pop(ctx);
+
+                  final messenger = ScaffoldMessenger.of(context);
+                  final router = GoRouter.of(context);
+
                   final loc = Location(
                     id: '',
-                    name: nameCtl.text.trim(),
-                    address:
-                        addrCtl.text.trim().isEmpty
-                            ? null
-                            : addrCtl.text.trim(),
+                    name: name,
+                    address: addr,
                     lat: _currentLat,
                     lng: _currentLng,
                     isFixed: true,
                     createdAt: DateTime.now(),
                   );
-                  await ref
-                      .read(locationListProvider.notifier)
-                      .addLocation(loc);
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('✅ "${nameCtl.text.trim()}" 등록됨'),
-                        backgroundColor: const Color(0xFF10B981),
-                      ),
-                    );
-                    context.go('/locations');
+                  try {
+                    await ref
+                        .read(locationListProvider.notifier)
+                        .addLocation(loc);
+                    if (mounted) {
+                      messenger.showSnackBar(
+                        SnackBar(
+                          content: Text('✅ "$name" 등록됨'),
+                          backgroundColor: const Color(0xFF10B981),
+                        ),
+                      );
+                      router.go('/locations');
+                    }
+                  } catch (e) {
+                    if (mounted) {
+                      messenger.showSnackBar(
+                        SnackBar(
+                          content: Text('등록 실패: $e'),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                    }
                   }
                 },
                 child: const Text('등록'),

@@ -20,9 +20,13 @@ final locationFilterProvider = StateProvider<LocationFilter>(
 /// 검색 쿼리 Provider
 final locationSearchProvider = StateProvider<String>((ref) => '');
 
-/// 통계 Provider
-final locationStatsProvider = FutureProvider<Map<String, int>>((ref) async {
-  return LocationService.getStats();
+/// 통계 Provider — locationListProvider 데이터에서 파생 (별도 DB 쿼리 없음)
+final locationStatsProvider = Provider<AsyncValue<Map<String, int>>>((ref) {
+  return ref.watch(locationListProvider).whenData((list) => {
+    'total': list.length,
+    'fixed': list.where((l) => l.isFixed).length,
+    'unfixed': list.where((l) => !l.isFixed).length,
+  });
 });
 
 /// 필터링된 장소 목록 Provider
@@ -76,8 +80,6 @@ class LocationListNotifier extends AsyncNotifier<List<Location>> {
   Future<void> refresh() async {
     state = const AsyncValue.loading();
     state = await AsyncValue.guard(() => LocationService.getAll());
-    // 통계도 갱신
-    ref.invalidate(locationStatsProvider);
   }
 
   /// 장소 추가
