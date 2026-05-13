@@ -39,6 +39,8 @@ class _LocationListScreenState extends ConsumerState<LocationListScreen> {
   }
 
   Future<void> _addFromNaver(NaverPlaceInfo place) async {
+    final messenger = ScaffoldMessenger.of(context);
+
     final confirmed = await showDialog<bool>(
       context: context,
       builder:
@@ -105,9 +107,6 @@ class _LocationListScreenState extends ConsumerState<LocationListScreen> {
       isFixed: hasCoords,
       createdAt: DateTime.now(),
     );
-
-    // await 이전에 context 사용을 완료해 use_build_context_synchronously 방지
-    final messenger = ScaffoldMessenger.of(context);
 
     await ref.read(locationListProvider.notifier).addLocation(location);
 
