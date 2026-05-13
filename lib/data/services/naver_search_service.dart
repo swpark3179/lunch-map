@@ -1,12 +1,13 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-/// 네이버 Local Search API로부터 파싱한 식당 메뉴 정보
+/// 네이버 Local Search API로부터 파싱한 식당 정보
 class NaverPlaceInfo {
   final String title;
   final String category;
   final String description;
   final String telephone;
   final String roadAddress;
+  final String link;
 
   const NaverPlaceInfo({
     required this.title,
@@ -14,6 +15,7 @@ class NaverPlaceInfo {
     required this.description,
     required this.telephone,
     required this.roadAddress,
+    required this.link,
   });
 
   factory NaverPlaceInfo.fromJson(Map<String, dynamic> json) {
@@ -23,10 +25,12 @@ class NaverPlaceInfo {
       description: json['description'] as String? ?? '',
       telephone: json['telephone'] as String? ?? '',
       roadAddress: json['roadAddress'] as String? ?? '',
+      link: json['link'] as String? ?? '',
     );
   }
 
   bool get hasDescription => description.isNotEmpty;
+  bool get hasLink => link.isNotEmpty;
 
   static String _stripHtml(String html) =>
       html.replaceAll(RegExp(r'<[^>]*>'), '');
@@ -35,7 +39,7 @@ class NaverPlaceInfo {
 class NaverSearchService {
   static final _client = Supabase.instance.client;
 
-  /// 거제 + [restaurantName] 으로 네이버 장소 검색 후 메뉴 정보 반환.
+  /// 거제 + [restaurantName] 으로 네이버 장소 검색 후 정보 반환.
   /// 검색 결과 중 식당 이름이 가장 유사한 항목을 선택한다.
   static Future<NaverPlaceInfo?> fetchPlaceInfo(String restaurantName) async {
     final response = await _client.functions.invoke(

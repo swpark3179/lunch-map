@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/theme/app_theme.dart';
 import '../../data/models/location.dart';
@@ -380,7 +381,7 @@ class _MenuSection extends StatelessWidget {
             else if (placeInfo == null)
               _EmptyMenu(onRetry: onRetry)
             else
-              _PlaceInfoContent(placeInfo: placeInfo!),
+              _PlaceInfoContent(placeInfo: placeInfo!, onRetry: onRetry),
           ],
         ),
       ),
@@ -390,8 +391,16 @@ class _MenuSection extends StatelessWidget {
 
 class _PlaceInfoContent extends StatelessWidget {
   final NaverPlaceInfo placeInfo;
+  final VoidCallback onRetry;
 
-  const _PlaceInfoContent({required this.placeInfo});
+  const _PlaceInfoContent({required this.placeInfo, required this.onRetry});
+
+  Future<void> _openNaverPlace() async {
+    final uri = Uri.parse(placeInfo.link);
+    if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+      // 열기 실패 시 무시
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -468,6 +477,22 @@ class _PlaceInfoContent extends StatelessWidget {
               color: theme.colorScheme.onSurfaceVariant,
             ),
           ),
+        if (placeInfo.hasLink) ...[
+          const SizedBox(height: 16),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: _openNaverPlace,
+              icon: const Icon(Icons.open_in_new_rounded, size: 18),
+              label: const Text('네이버지도에서 보기'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: const Color(0xFF03C75A),
+                side: const BorderSide(color: Color(0xFF03C75A)),
+                padding: const EdgeInsets.symmetric(vertical: 12),
+              ),
+            ),
+          ),
+        ],
       ],
     );
   }
