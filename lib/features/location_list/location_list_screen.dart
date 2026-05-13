@@ -327,6 +327,7 @@ class _NaverSearchPanelState extends State<_NaverSearchPanel> {
   List<NaverPlaceInfo> _results = [];
   bool _isLoading = false;
   bool _searched = false;
+  bool _hasError = false;
 
   @override
   void dispose() {
@@ -340,6 +341,7 @@ class _NaverSearchPanelState extends State<_NaverSearchPanel> {
     setState(() {
       _isLoading = true;
       _searched = false;
+      _hasError = false;
       _results = [];
     });
     try {
@@ -352,7 +354,13 @@ class _NaverSearchPanelState extends State<_NaverSearchPanel> {
         });
       }
     } catch (_) {
-      if (mounted) setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _searched = true;
+          _hasError = true;
+        });
+      }
     }
   }
 
@@ -361,6 +369,7 @@ class _NaverSearchPanelState extends State<_NaverSearchPanel> {
     setState(() {
       _results = [];
       _searched = false;
+      _hasError = false;
     });
   }
 
@@ -414,8 +423,20 @@ class _NaverSearchPanelState extends State<_NaverSearchPanel> {
               ),
             ),
 
+          // ── 검색 오류 ──
+          if (!_isLoading && _searched && _hasError)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              child: Text(
+                '검색 중 오류가 발생했습니다. 다시 시도해주세요.',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.error,
+                ),
+              ),
+            ),
+
           // ── 검색 결과 없음 ──
-          if (!_isLoading && _searched && _results.isEmpty)
+          if (!_isLoading && _searched && !_hasError && _results.isEmpty)
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 12),
               child: Text(
