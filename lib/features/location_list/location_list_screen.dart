@@ -92,7 +92,8 @@ class _LocationListScreenState extends ConsumerState<LocationListScreen> {
           ),
     );
 
-    if (confirmed != true || !context.mounted) return;
+    if (confirmed != true) return;
+    if (!context.mounted) return;
 
     final hasCoords = place.placeLat != null && place.placeLng != null;
     final location = Location(
