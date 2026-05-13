@@ -106,10 +106,12 @@ class _LocationListScreenState extends ConsumerState<LocationListScreen> {
       createdAt: DateTime.now(),
     );
 
+    // await 이전에 context 사용을 완료해 use_build_context_synchronously 방지
+    final messenger = ScaffoldMessenger.of(context);
+
     await ref.read(locationListProvider.notifier).addLocation(location);
 
-    if (!context.mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
+    messenger.showSnackBar(
       SnackBar(
         content: Text(
           '"${place.title}" 추가됨${hasCoords ? " (위치 자동 설정)" : ""}',
