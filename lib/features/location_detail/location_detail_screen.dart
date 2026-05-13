@@ -389,7 +389,7 @@ class _MenuSection extends StatelessWidget {
             else if (placeInfo == null)
               _EmptyMenu(onRetry: onRetry)
             else
-              _PlaceInfoContent(placeInfo: placeInfo!, onRetry: onRetry),
+              _PlaceInfoContent(placeInfo: placeInfo!),
           ],
         ),
       ),
@@ -399,15 +399,12 @@ class _MenuSection extends StatelessWidget {
 
 class _PlaceInfoContent extends StatelessWidget {
   final NaverPlaceInfo placeInfo;
-  final VoidCallback onRetry;
 
-  const _PlaceInfoContent({required this.placeInfo, required this.onRetry});
+  const _PlaceInfoContent({required this.placeInfo});
 
   Future<void> _openNaverPlace() async {
     final uri = Uri.parse(placeInfo.link);
-    if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
-      // 열기 실패 시 무시
-    }
+    await launchUrl(uri, mode: LaunchMode.externalApplication);
   }
 
   @override
