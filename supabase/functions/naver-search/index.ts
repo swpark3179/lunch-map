@@ -12,7 +12,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { query } = await req.json();
+    const { query, display = 5 } = await req.json();
     if (!query) {
       return new Response(JSON.stringify({ error: "query is required" }), {
         status: 400,
@@ -33,7 +33,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    const url = `https://openapi.naver.com/v1/search/local.json?query=${encodeURIComponent(query)}&display=5&sort=comment`;
+    const url = `https://openapi.naver.com/v1/search/local.json?query=${encodeURIComponent(query)}&display=${display}&sort=comment`;
 
     const naverRes = await fetch(url, {
       headers: {

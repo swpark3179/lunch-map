@@ -127,6 +127,26 @@ class NaverSearchService {
     return items.first;
   }
 
+  /// 키워드로 네이버 장소를 검색해 전체 결과 목록 반환 (식당 추가용).
+  /// "거제 " 접두어를 자동으로 붙여 지역 검색을 수행한다.
+  static Future<List<NaverPlaceInfo>> searchAll(String query) async {
+    final response = await _client.functions.invoke(
+      'naver-search',
+      body: {'query': '거제 $query', 'display': 10},
+    );
+
+    final data = response.data;
+    if (data == null) return [];
+
+    final items = data['items'] as List?;
+    if (items == null || items.isEmpty) return [];
+
+    return items
+        .cast<Map<String, dynamic>>()
+        .map(NaverPlaceInfo.fromJson)
+        .toList();
+  }
+
   /// 위경도 차이의 제곱합 (상대적 거리 비교용).
   static double _squaredDistance(
     double lat1,
