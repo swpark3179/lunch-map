@@ -23,7 +23,6 @@ class MenuReviewSection extends StatefulWidget {
 class _MenuReviewSectionState extends State<MenuReviewSection> {
   late Future<List<MenuItem>> _future = MenuService.getByLocation(widget.locationId);
   String? _expandedId;
-  String? _editingId;
   bool _editMode = false;
 
   void _reload() {
