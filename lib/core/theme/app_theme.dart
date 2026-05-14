@@ -1,258 +1,250 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-/// 앱 전체 테마 설정 (Material 3 기반)
+import 'opus_tokens.dart';
+
+/// 앱 전체 테마 — OPUS-X 디자인 토큰 기반 (Material 3).
 class AppTheme {
   AppTheme._();
 
-  // ─── 색상 팔레트 ───
-  static const Color _primaryColor = Color(0xFF2563EB); // Vibrant Blue
-  static const Color _secondaryColor = Color(0xFF7C3AED); // Purple
-  static const Color _tertiaryColor = Color(0xFF06B6D4); // Cyan
-  static const Color _errorColor = Color(0xFFEF4444);
+  static const Color _primary  = OpusColors.purple600;
+  static const Color _accent   = OpusColors.purple500;
+  static const Color _surface  = OpusColors.bgBase;
+  static const Color _canvas   = OpusColors.bgCanvas;
 
-  // 핀 관련 색상
-  static const Color pinFixed = Color(0xFF10B981); // 위치 확정 (녹색)
-  static const Color pinUnfixed = Color(0xFFEF4444); // 위치 미확정 (빨간)
+  // 위치 핀
+  static const Color pinFixed   = OpusColors.green500;
+  static const Color pinUnfixed = OpusColors.yellow500;
 
-  // ─── 라이트 테마 ───
   static ThemeData get lightTheme {
     final colorScheme = ColorScheme.fromSeed(
-      seedColor: _primaryColor,
+      seedColor: _primary,
       brightness: Brightness.light,
-      primary: _primaryColor,
-      secondary: _secondaryColor,
-      tertiary: _tertiaryColor,
-      error: _errorColor,
-      surface: const Color(0xFFF8FAFC),
+      primary: _primary,
+      onPrimary: Colors.white,
+      secondary: _accent,
+      tertiary: OpusColors.teal500,
+      error: OpusColors.red600,
+      surface: _surface,
+    );
+
+    final base = GoogleFonts.notoSansKrTextTheme();
+    final textTheme = base.copyWith(
+      displayLarge: GoogleFonts.sora(
+        fontSize: 38,
+        fontWeight: FontWeight.w700,
+        color: OpusColors.gray900,
+        letterSpacing: -0.4,
+      ),
+      headlineMedium: GoogleFonts.notoSansKr(
+        fontSize: 24,
+        fontWeight: FontWeight.w700,
+        color: OpusColors.gray900,
+        letterSpacing: -0.2,
+      ),
+      titleLarge: GoogleFonts.notoSansKr(
+        fontSize: 18,
+        fontWeight: FontWeight.w600,
+        color: OpusColors.gray900,
+      ),
+      titleMedium: GoogleFonts.notoSansKr(
+        fontSize: 15,
+        fontWeight: FontWeight.w600,
+        color: OpusColors.gray900,
+      ),
+      bodyLarge: GoogleFonts.notoSansKr(
+        fontSize: 15,
+        fontWeight: FontWeight.w400,
+        color: OpusColors.gray700,
+      ),
+      bodyMedium: GoogleFonts.notoSansKr(
+        fontSize: 13,
+        fontWeight: FontWeight.w400,
+        color: OpusColors.gray600,
+      ),
+      bodySmall: GoogleFonts.notoSansKr(
+        fontSize: 11,
+        fontWeight: FontWeight.w400,
+        color: OpusColors.gray500,
+      ),
+      labelLarge: GoogleFonts.notoSansKr(
+        fontSize: 14,
+        fontWeight: FontWeight.w600,
+        color: Colors.white,
+      ),
     );
 
     return ThemeData(
       useMaterial3: true,
       colorScheme: colorScheme,
-      textTheme: GoogleFonts.notoSansKrTextTheme().copyWith(
-        headlineLarge: GoogleFonts.notoSansKr(
-          fontSize: 28,
-          fontWeight: FontWeight.w700,
-          color: const Color(0xFF0F172A),
-        ),
-        headlineMedium: GoogleFonts.notoSansKr(
-          fontSize: 22,
-          fontWeight: FontWeight.w600,
-          color: const Color(0xFF1E293B),
-        ),
-        titleLarge: GoogleFonts.notoSansKr(
-          fontSize: 18,
-          fontWeight: FontWeight.w600,
-          color: const Color(0xFF1E293B),
-        ),
-        titleMedium: GoogleFonts.notoSansKr(
-          fontSize: 16,
-          fontWeight: FontWeight.w500,
-          color: const Color(0xFF334155),
-        ),
-        bodyLarge: GoogleFonts.notoSansKr(
-          fontSize: 16,
-          fontWeight: FontWeight.w400,
-          color: const Color(0xFF334155),
-        ),
-        bodyMedium: GoogleFonts.notoSansKr(
-          fontSize: 14,
-          fontWeight: FontWeight.w400,
-          color: const Color(0xFF475569),
-        ),
-        labelLarge: GoogleFonts.notoSansKr(
-          fontSize: 14,
-          fontWeight: FontWeight.w600,
-          color: Colors.white,
-        ),
-      ),
+      scaffoldBackgroundColor: _canvas,
+      textTheme: textTheme,
       appBarTheme: AppBarTheme(
         elevation: 0,
-        scrolledUnderElevation: 2,
+        scrolledUnderElevation: 0,
         centerTitle: true,
-        backgroundColor: Colors.white,
-        foregroundColor: const Color(0xFF0F172A),
+        backgroundColor: _surface,
+        foregroundColor: OpusColors.gray900,
         titleTextStyle: GoogleFonts.notoSansKr(
-          fontSize: 18,
+          fontSize: 16,
           fontWeight: FontWeight.w600,
-          color: const Color(0xFF0F172A),
+          color: OpusColors.gray900,
         ),
       ),
       cardTheme: CardThemeData(
         elevation: 0,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-          side: BorderSide(color: const Color(0xFFE2E8F0)),
+          borderRadius: BorderRadius.circular(OpusRadius.xl),
+          side: const BorderSide(color: OpusColors.gray100),
         ),
-        color: Colors.white,
+        color: _surface,
         margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
           elevation: 0,
-          backgroundColor: _primaryColor,
+          backgroundColor: _primary,
           foregroundColor: Colors.white,
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(OpusRadius.xl),
           ),
           textStyle: GoogleFonts.notoSansKr(
-            fontSize: 15,
+            fontSize: 14,
             fontWeight: FontWeight.w600,
           ),
         ),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
-          foregroundColor: _primaryColor,
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+          foregroundColor: _primary,
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(OpusRadius.xl),
           ),
-          side: BorderSide(color: _primaryColor.withValues(alpha: 0.5)),
+          side: const BorderSide(color: OpusColors.purple200),
           textStyle: GoogleFonts.notoSansKr(
-            fontSize: 15,
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ),
+      textButtonTheme: TextButtonThemeData(
+        style: TextButton.styleFrom(
+          foregroundColor: _primary,
+          textStyle: GoogleFonts.notoSansKr(
+            fontSize: 14,
             fontWeight: FontWeight.w600,
           ),
         ),
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: const Color(0xFFF1F5F9),
+        fillColor: OpusColors.gray50,
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(OpusRadius.xl),
           borderSide: BorderSide.none,
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: const Color(0xFFE2E8F0)),
+          borderRadius: BorderRadius.circular(OpusRadius.xl),
+          borderSide: const BorderSide(color: OpusColors.gray200),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: _primaryColor, width: 2),
+          borderRadius: BorderRadius.circular(OpusRadius.xl),
+          borderSide: const BorderSide(color: _primary, width: 1.5),
         ),
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 16,
-          vertical: 14,
-        ),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         hintStyle: GoogleFonts.notoSansKr(
           fontSize: 14,
-          color: const Color(0xFF94A3B8),
+          color: OpusColors.gray400,
         ),
       ),
-      floatingActionButtonTheme: FloatingActionButtonThemeData(
-        elevation: 4,
-        backgroundColor: _primaryColor,
+      floatingActionButtonTheme: const FloatingActionButtonThemeData(
+        elevation: 6,
+        backgroundColor: _primary,
         foregroundColor: Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       ),
-      bottomNavigationBarTheme: const BottomNavigationBarThemeData(
-        elevation: 8,
-        selectedItemColor: _primaryColor,
-        unselectedItemColor: Color(0xFF94A3B8),
+      navigationBarTheme: NavigationBarThemeData(
         backgroundColor: Colors.white,
-        type: BottomNavigationBarType.fixed,
+        indicatorColor: OpusColors.purple50,
+        elevation: 0,
+        height: 64,
+        labelTextStyle: WidgetStateProperty.resolveWith(
+          (states) => GoogleFonts.notoSansKr(
+            fontSize: 11,
+            fontWeight: states.contains(WidgetState.selected)
+                ? FontWeight.w600
+                : FontWeight.w500,
+            color: states.contains(WidgetState.selected)
+                ? OpusColors.purple700
+                : OpusColors.gray500,
+          ),
+        ),
+        iconTheme: WidgetStateProperty.resolveWith(
+          (states) => IconThemeData(
+            size: 22,
+            color: states.contains(WidgetState.selected)
+                ? OpusColors.purple600
+                : OpusColors.gray500,
+          ),
+        ),
       ),
       snackBarTheme: SnackBarThemeData(
         behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(OpusRadius.xl),
+        ),
+        backgroundColor: OpusColors.gray900,
+        contentTextStyle: GoogleFonts.notoSansKr(
+          color: Colors.white,
+          fontSize: 13,
+          fontWeight: FontWeight.w500,
+        ),
       ),
       dialogTheme: DialogThemeData(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(OpusRadius.xl3),
+        ),
       ),
       dividerTheme: const DividerThemeData(
-        color: Color(0xFFE2E8F0),
+        color: OpusColors.gray100,
         thickness: 1,
+        space: 1,
+      ),
+      chipTheme: ChipThemeData(
+        backgroundColor: OpusColors.gray100,
+        labelStyle: GoogleFonts.notoSansKr(
+          fontSize: 12,
+          fontWeight: FontWeight.w500,
+          color: OpusColors.gray700,
+        ),
+        shape: const StadiumBorder(),
+        side: BorderSide.none,
       ),
     );
   }
 
-  // ─── 다크 테마 ───
+  /// 다크 테마 — 색상만 OPUS-X 톤으로 살짝 조정, 컴포넌트는 라이트와 동일 구조.
   static ThemeData get darkTheme {
     final colorScheme = ColorScheme.fromSeed(
-      seedColor: _primaryColor,
+      seedColor: _primary,
       brightness: Brightness.dark,
-      primary: const Color(0xFF60A5FA),
-      secondary: const Color(0xFFA78BFA),
-      tertiary: const Color(0xFF22D3EE),
-      error: const Color(0xFFFCA5A5),
-      surface: const Color(0xFF0F172A),
+      primary: OpusColors.purple400,
+      secondary: OpusColors.purple300,
+      tertiary: OpusColors.teal500,
+      error: OpusColors.red500,
+      surface: OpusColors.gray900,
     );
 
     return ThemeData(
       useMaterial3: true,
       colorScheme: colorScheme,
-      scaffoldBackgroundColor: const Color(0xFF0F172A),
+      scaffoldBackgroundColor: OpusColors.gray900,
       textTheme: GoogleFonts.notoSansKrTextTheme(ThemeData.dark().textTheme),
-      appBarTheme: AppBarTheme(
+      appBarTheme: const AppBarTheme(
         elevation: 0,
-        scrolledUnderElevation: 2,
-        centerTitle: true,
-        backgroundColor: const Color(0xFF1E293B),
-        foregroundColor: const Color(0xFFF1F5F9),
-        titleTextStyle: GoogleFonts.notoSansKr(
-          fontSize: 18,
-          fontWeight: FontWeight.w600,
-          color: const Color(0xFFF1F5F9),
-        ),
-      ),
-      cardTheme: CardThemeData(
-        elevation: 0,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-          side: BorderSide(color: const Color(0xFF334155)),
-        ),
-        color: const Color(0xFF1E293B),
-        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-      ),
-      elevatedButtonTheme: ElevatedButtonThemeData(
-        style: ElevatedButton.styleFrom(
-          elevation: 0,
-          backgroundColor: const Color(0xFF3B82F6),
-          foregroundColor: Colors.white,
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-          textStyle: GoogleFonts.notoSansKr(
-            fontSize: 15,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-      ),
-      inputDecorationTheme: InputDecorationTheme(
-        filled: true,
-        fillColor: const Color(0xFF1E293B),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide.none,
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: const Color(0xFF334155)),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: const Color(0xFF60A5FA), width: 2),
-        ),
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 16,
-          vertical: 14,
-        ),
-      ),
-      floatingActionButtonTheme: FloatingActionButtonThemeData(
-        elevation: 4,
-        backgroundColor: const Color(0xFF3B82F6),
+        backgroundColor: OpusColors.gray900,
         foregroundColor: Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      ),
-      bottomNavigationBarTheme: const BottomNavigationBarThemeData(
-        elevation: 8,
-        selectedItemColor: Color(0xFF60A5FA),
-        unselectedItemColor: Color(0xFF64748B),
-        backgroundColor: Color(0xFF1E293B),
-        type: BottomNavigationBarType.fixed,
       ),
     );
   }

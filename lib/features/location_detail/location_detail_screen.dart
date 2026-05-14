@@ -7,6 +7,7 @@ import '../../core/theme/app_theme.dart';
 import '../../data/models/location.dart';
 import '../../data/services/location_service.dart';
 import '../../data/services/naver_search_service.dart';
+import 'menu_review_section.dart';
 
 /// 장소 상세 화면
 class LocationDetailScreen extends ConsumerStatefulWidget {
@@ -315,7 +316,12 @@ class _LocationDetailScreenState extends ConsumerState<LocationDetailScreen> {
 
             const SizedBox(height: 16),
 
-            // ── 메뉴 정보 ──
+            // ── 메뉴 · 후기 (OPUS-X redesign · 신규 DB 기반) ──
+            MenuReviewSection(locationId: location.id),
+
+            const SizedBox(height: 16),
+
+            // ── 네이버 메뉴 정보 (보조) ──
             _MenuSection(
               isLoading: _isMenuLoading,
               placeInfo: _placeInfo,

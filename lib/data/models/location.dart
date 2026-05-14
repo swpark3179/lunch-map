@@ -1,8 +1,10 @@
-/// 장소 데이터 모델
+/// 장소(식당) 데이터 모델
 class Location {
   final String id;
   final String name;
   final String? address;
+  final String? category; // kr/jp/cn/wt/as/cf
+  final String? phone;
   final double? lat;
   final double? lng;
   final bool isFixed;
@@ -12,18 +14,21 @@ class Location {
     required this.id,
     required this.name,
     this.address,
+    this.category,
+    this.phone,
     this.lat,
     this.lng,
     this.isFixed = false,
     required this.createdAt,
   });
 
-  /// Supabase JSON → Location 객체 변환
   factory Location.fromJson(Map<String, dynamic> json) {
     return Location(
       id: json['id'] as String,
       name: json['name'] as String,
       address: json['address'] as String?,
+      category: json['category'] as String?,
+      phone: json['phone'] as String?,
       lat: (json['lat'] as num?)?.toDouble(),
       lng: (json['lng'] as num?)?.toDouble(),
       isFixed: json['is_fixed'] as bool? ?? false,
@@ -31,24 +36,25 @@ class Location {
     );
   }
 
-  /// Location 객체 → Supabase JSON 변환
   Map<String, dynamic> toJson() {
     return {
       'name': name,
       if (address != null) 'address': address,
+      if (category != null) 'category': category,
+      if (phone != null) 'phone': phone,
       if (lat != null) 'lat': lat,
       if (lng != null) 'lng': lng,
       'is_fixed': isFixed,
-      // coords(geography)는 lat/lng가 있을 때 DB 트리거 또는 서비스 레이어에서 처리
-      if (lat != null && lng != null) 'coords': 'POINT($lng $lat)',
+      // coords(geography) 는 DB 트리거가 lat/lng 로부터 계산하므로 보내지 않는다.
     };
   }
 
-  /// copyWith 패턴
   Location copyWith({
     String? id,
     String? name,
     String? address,
+    String? category,
+    String? phone,
     double? lat,
     double? lng,
     bool? isFixed,
@@ -58,6 +64,8 @@ class Location {
       id: id ?? this.id,
       name: name ?? this.name,
       address: address ?? this.address,
+      category: category ?? this.category,
+      phone: phone ?? this.phone,
       lat: lat ?? this.lat,
       lng: lng ?? this.lng,
       isFixed: isFixed ?? this.isFixed,
@@ -65,7 +73,6 @@ class Location {
     );
   }
 
-  /// 좌표 존재 여부
   bool get hasCoordinates => lat != null && lng != null;
 
   @override

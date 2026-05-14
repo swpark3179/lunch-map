@@ -1,9 +1,10 @@
 import 'package:go_router/go_router.dart';
 
+import '../../features/budget/budget_screen.dart';
 import '../../features/home/home_screen.dart';
+import '../../features/location_detail/location_detail_screen.dart';
 import '../../features/location_list/location_list_screen.dart';
 import '../../features/map_picker/map_picker_screen.dart';
-import '../../features/location_detail/location_detail_screen.dart';
 import '../shell/app_shell.dart';
 
 final GoRouter appRouter = GoRouter(
@@ -37,6 +38,11 @@ final GoRouter appRouter = GoRouter(
             final locationId = state.uri.queryParameters['locationId'];
             return MapPickerScreen(locationId: locationId);
           },
+        ),
+        GoRoute(
+          path: '/budget',
+          name: 'budget',
+          builder: (context, state) => const BudgetScreen(),
         ),
       ],
     ),
