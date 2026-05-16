@@ -81,6 +81,51 @@ class LocationService {
     return Location.fromJson(response);
   }
 
+  /// 네이버 POI 연결 정보 갱신.
+  /// [link] 등 일부 인자가 null/빈 문자열이고 [linked] 가 true 이면 해당
+  /// 컬럼은 변경하지 않는다. [linked] 가 false 이면 연결 해제로 간주하고
+  /// 부가 컬럼을 모두 NULL 로 비운다. [name]/[address]/[phone]/[category]/
+  /// 좌표가 제공되면 함께 업데이트한다(POI 정보로 기본 필드를 동기화).
+  static Future<Location> updateNaverLink(
+    String id, {
+    required bool linked,
+    String? link,
+    String? category,
+    String? name,
+    String? address,
+    String? phone,
+    double? lat,
+    double? lng,
+  }) async {
+    final patch = <String, dynamic>{
+      'naver_linked': linked,
+    };
+    if (linked) {
+      if (link != null && link.isNotEmpty) patch['naver_link'] = link;
+      if (category != null && category.isNotEmpty) {
+        patch['naver_category'] = category;
+      }
+    } else {
+      patch['naver_link'] = null;
+      patch['naver_category'] = null;
+    }
+    if (name != null && name.isNotEmpty) patch['name'] = name;
+    if (address != null && address.isNotEmpty) patch['address'] = address;
+    if (phone != null && phone.isNotEmpty) patch['phone'] = phone;
+    if (lat != null && lng != null) {
+      patch['lat'] = lat;
+      patch['lng'] = lng;
+      patch['is_fixed'] = true;
+    }
+    final response = await _client
+        .from(_tableName)
+        .update(patch)
+        .eq('id', id)
+        .select()
+        .single();
+    return Location.fromJson(response);
+  }
+
   /// 위치 좌표 업데이트 — coords 는 트리거가 갱신한다.
   static Future<Location> updateCoordinates(
     String id, {

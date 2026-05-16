@@ -10,6 +10,12 @@ class Location {
   final bool isFixed;
   final DateTime createdAt;
 
+  /// 네이버 POI 연결 여부 — 지도뷰에서 자체 caption 을 숨겨
+  /// 네이버 기본 라벨과의 중복 표기를 방지한다.
+  final bool naverLinked;
+  final String? naverLink;
+  final String? naverCategory;
+
   const Location({
     required this.id,
     required this.name,
@@ -20,6 +26,9 @@ class Location {
     this.lng,
     this.isFixed = false,
     required this.createdAt,
+    this.naverLinked = false,
+    this.naverLink,
+    this.naverCategory,
   });
 
   factory Location.fromJson(Map<String, dynamic> json) {
@@ -33,6 +42,9 @@ class Location {
       lng: (json['lng'] as num?)?.toDouble(),
       isFixed: json['is_fixed'] as bool? ?? false,
       createdAt: DateTime.parse(json['created_at'] as String),
+      naverLinked: json['naver_linked'] as bool? ?? false,
+      naverLink: json['naver_link'] as String?,
+      naverCategory: json['naver_category'] as String?,
     );
   }
 
@@ -45,6 +57,9 @@ class Location {
       if (lat != null) 'lat': lat,
       if (lng != null) 'lng': lng,
       'is_fixed': isFixed,
+      'naver_linked': naverLinked,
+      if (naverLink != null) 'naver_link': naverLink,
+      if (naverCategory != null) 'naver_category': naverCategory,
       // coords(geography) 는 DB 트리거가 lat/lng 로부터 계산하므로 보내지 않는다.
     };
   }
@@ -59,6 +74,9 @@ class Location {
     double? lng,
     bool? isFixed,
     DateTime? createdAt,
+    bool? naverLinked,
+    String? naverLink,
+    String? naverCategory,
   }) {
     return Location(
       id: id ?? this.id,
@@ -70,13 +88,17 @@ class Location {
       lng: lng ?? this.lng,
       isFixed: isFixed ?? this.isFixed,
       createdAt: createdAt ?? this.createdAt,
+      naverLinked: naverLinked ?? this.naverLinked,
+      naverLink: naverLink ?? this.naverLink,
+      naverCategory: naverCategory ?? this.naverCategory,
     );
   }
 
   bool get hasCoordinates => lat != null && lng != null;
 
   @override
-  String toString() => 'Location(id: $id, name: $name, fixed: $isFixed)';
+  String toString() =>
+      'Location(id: $id, name: $name, fixed: $isFixed, naver: $naverLinked)';
 
   @override
   bool operator ==(Object other) =>
