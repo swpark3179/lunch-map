@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/theme/app_theme.dart';
 import '../../data/models/location.dart';
@@ -419,6 +420,27 @@ class _LocationCard extends StatelessWidget {
                   ],
                 ),
               ),
+
+              // 전화 걸기 버튼 (전화번호가 있을 때만 표시)
+              if (location.phone != null && location.phone!.trim().isNotEmpty)
+                IconButton(
+                  icon: Icon(
+                    Icons.phone_rounded,
+                    size: 20,
+                    color: theme.colorScheme.primary,
+                  ),
+                  tooltip: '전화 걸기',
+                  onPressed: () async {
+                    final digits = location.phone!
+                        .replaceAll(RegExp(r'[^0-9+]'), '');
+                    if (digits.isNotEmpty) {
+                      await launchUrl(
+                        Uri.parse('tel:$digits'),
+                        mode: LaunchMode.externalApplication,
+                      );
+                    }
+                  },
+                ),
 
               // 액션 메뉴
               PopupMenuButton<String>(

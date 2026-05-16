@@ -92,6 +92,21 @@ class _BudgetScreenState extends ConsumerState<BudgetScreen>
                         data: (locations) => FutureBuilder<List<MenuItem>>(
                           future: _menusFuture,
                           builder: (context, snap) {
+                            if (snap.hasError) {
+                              return Center(
+                                child: Padding(
+                                  padding: const EdgeInsets.all(20),
+                                  child: Text(
+                                    '메뉴 정보를 불러오지 못했습니다\n${snap.error}',
+                                    textAlign: TextAlign.center,
+                                    style: GoogleFonts.notoSansKr(
+                                      fontSize: 13,
+                                      color: OpusColors.gray500,
+                                    ),
+                                  ),
+                                ),
+                              );
+                            }
                             if (!snap.hasData) {
                               return const Center(
                                   child: CircularProgressIndicator());

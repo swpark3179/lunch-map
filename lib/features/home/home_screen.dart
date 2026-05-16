@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/theme/opus_tokens.dart';
 import '../../data/models/location.dart';
@@ -428,55 +429,118 @@ class _SelectedCard extends StatelessWidget {
 
   const _SelectedCard({required this.selected, required this.onOpenDetail});
 
+  static Future<void> _callPhone(String phone) async {
+    final digits = phone.replaceAll(RegExp(r'[^0-9+]'), '');
+    if (digits.isEmpty) return;
+    await launchUrl(
+      Uri.parse('tel:$digits'),
+      mode: LaunchMode.externalApplication,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: selected.id == 'placeholder' ? null : () => onOpenDetail(selected.id),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
+    final isPlaceholder = selected.id == 'placeholder';
+    final hasPhone = !isPlaceholder &&
+        selected.phone != null &&
+        selected.phone!.trim().isNotEmpty;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        InkWell(
+          onTap: isPlaceholder ? null : () => onOpenDetail(selected.id),
+          child: Padding(
+            padding: EdgeInsets.fromLTRB(20, 8, 20, hasPhone ? 4 : 16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                if (selected.category != null)
-                  OpusBadge(
-                    text: OpusColors.categoryLabel(selected.category!),
-                    variant: BadgeVariant.primary,
-                    dot: true,
-                  ),
-                const SizedBox(width: 6),
-                if (selected.isFixed)
-                  const OpusBadge(
-                      text: '위치 확정', variant: BadgeVariant.success),
-              ],
-            ),
-            const SizedBox(height: 6),
-            Text(
-              selected.name,
-              style: GoogleFonts.notoSansKr(
-                fontSize: 20,
-                fontWeight: FontWeight.w700,
-                color: OpusColors.gray900,
-                letterSpacing: -0.2,
-              ),
-            ),
-            if (selected.address != null)
-              Padding(
-                padding: const EdgeInsets.only(top: 4),
-                child: Text(
-                  selected.address!,
+                Row(
+                  children: [
+                    if (selected.category != null)
+                      OpusBadge(
+                        text: OpusColors.categoryLabel(selected.category!),
+                        variant: BadgeVariant.primary,
+                        dot: true,
+                      ),
+                    const SizedBox(width: 6),
+                    if (selected.isFixed)
+                      const OpusBadge(
+                          text: '위치 확정', variant: BadgeVariant.success),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  selected.name,
                   style: GoogleFonts.notoSansKr(
-                    fontSize: 12,
-                    color: OpusColors.gray500,
+                    fontSize: 20,
+                    fontWeight: FontWeight.w700,
+                    color: OpusColors.gray900,
+                    letterSpacing: -0.2,
                   ),
                 ),
-              ),
-            if (selected.id != 'placeholder')
-              _MenuPreview(locationId: selected.id),
-          ],
+                if (selected.address != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4),
+                    child: Text(
+                      selected.address!,
+                      style: GoogleFonts.notoSansKr(
+                        fontSize: 12,
+                        color: OpusColors.gray500,
+                      ),
+                    ),
+                  ),
+                if (!isPlaceholder) _MenuPreview(locationId: selected.id),
+              ],
+            ),
+          ),
         ),
-      ),
+        if (hasPhone)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 4, 20, 16),
+            child: GestureDetector(
+              onTap: () => _callPhone(selected.phone!),
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                decoration: BoxDecoration(
+                  color: OpusColors.purple50,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: OpusColors.purple100),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.phone_rounded,
+                        size: 16, color: OpusColors.purple600),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        selected.phone!,
+                        style: GoogleFonts.robotoMono(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: OpusColors.purple700,
+                        ),
+                      ),
+                    ),
+                    Text(
+                      '전화 걸기',
+                      style: GoogleFonts.notoSansKr(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                        color: OpusColors.purple600,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    const Icon(Icons.arrow_forward_ios_rounded,
+                        size: 10, color: OpusColors.purple600),
+                  ],
+                ),
+              ),
+            ),
+          ),
+      ],
     );
   }
 }
