@@ -6,6 +6,7 @@ import '../../core/theme/opus_tokens.dart';
 import '../../data/models/comment.dart';
 import '../../data/models/menu.dart';
 import '../../data/services/menu_service.dart';
+import '../../data/services/naver_menu_service.dart';
 import '../redesign/widgets/opus_widgets.dart';
 
 /// 메뉴 목록 섹션 — 식당 상세 화면용.
@@ -14,11 +15,17 @@ import '../redesign/widgets/opus_widgets.dart';
 /// 편집 토글 상태를 주입한다.
 class MenuListSection extends StatefulWidget {
   final String locationId;
+  final String locationName;
+  final double? lat;
+  final double? lng;
   final bool editMode;
 
   const MenuListSection({
     super.key,
     required this.locationId,
+    required this.locationName,
+    this.lat,
+    this.lng,
     required this.editMode,
   });
 
@@ -29,11 +36,56 @@ class MenuListSection extends StatefulWidget {
 class _MenuListSectionState extends State<MenuListSection> {
   late Future<List<MenuItem>> _future =
       MenuService.getByLocation(widget.locationId);
+  bool _fetchingNaver = false;
 
   void _reload() {
     setState(() {
       _future = MenuService.getByLocation(widget.locationId);
     });
+  }
+
+  Future<void> _importFromNaver() async {
+    setState(() => _fetchingNaver = true);
+    try {
+      final naverMenus = await NaverMenuService.fetchMenus(
+        locationName: widget.locationName,
+        lat: widget.lat,
+        lng: widget.lng,
+      );
+      if (!mounted) return;
+      setState(() => _fetchingNaver = false);
+
+      if (naverMenus.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('네이버에서 메뉴 정보를 찾을 수 없어요')),
+        );
+        return;
+      }
+
+      final selected = await showModalBottomSheet<List<NaverMenuItem>>(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: Colors.transparent,
+        builder: (_) => _NaverMenuImportSheet(menus: naverMenus),
+      );
+
+      if (selected == null || selected.isEmpty || !mounted) return;
+
+      for (final m in selected) {
+        await MenuService.insert(
+          locationId: widget.locationId,
+          name: m.name,
+          price: m.price ?? 0,
+        );
+      }
+      _reload();
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _fetchingNaver = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('메뉴 가져오기 실패: $e')),
+      );
+    }
   }
 
   Future<void> _addMenu() async {
@@ -134,10 +186,22 @@ class _MenuListSectionState extends State<MenuListSection> {
                 count: menus.length,
               ),
               if (menus.isEmpty)
-                _EmptyHint(
-                  text: widget.editMode
-                      ? '아래 “메뉴 추가” 버튼으로 등록하세요'
-                      : '등록된 메뉴가 없어요',
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _EmptyHint(
+                      text: widget.editMode
+                          ? '아래 버튼으로 직접 등록하거나\n네이버에서 자동으로 가져오세요'
+                          : '등록된 메뉴가 없어요',
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                      child: _NaverFetchButton(
+                        loading: _fetchingNaver,
+                        onTap: _importFromNaver,
+                      ),
+                    ),
+                  ],
                 )
               else
                 for (var i = 0; i < menus.length; i++)
@@ -878,6 +942,232 @@ class _EmptyHint extends StatelessWidget {
             fontSize: 13,
             color: OpusColors.gray500,
           ),
+        ),
+      ),
+    );
+  }
+}
+
+// ─── 네이버 메뉴 가져오기 버튼 ──────────────────────────────────
+
+class _NaverFetchButton extends StatelessWidget {
+  final bool loading;
+  final VoidCallback onTap;
+
+  const _NaverFetchButton({required this.loading, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return OutlinedButton.icon(
+      style: OutlinedButton.styleFrom(
+        foregroundColor: const Color(0xFF03C75A),
+        backgroundColor: const Color(0xFFF0FBF4),
+        side: const BorderSide(color: Color(0xFF03C75A)),
+        padding: const EdgeInsets.symmetric(vertical: 12),
+      ),
+      onPressed: loading ? null : onTap,
+      icon: loading
+          ? const SizedBox(
+              width: 16,
+              height: 16,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: Color(0xFF03C75A),
+              ),
+            )
+          : const Icon(Icons.download_rounded, size: 18),
+      label: Text(
+        loading ? '네이버에서 불러오는 중...' : '네이버에서 메뉴 자동 가져오기',
+        style: GoogleFonts.notoSansKr(fontSize: 13, fontWeight: FontWeight.w600),
+      ),
+    );
+  }
+}
+
+// ─── 네이버 메뉴 가져오기 확인 시트 ────────────────────────────
+
+class _NaverMenuImportSheet extends StatefulWidget {
+  final List<NaverMenuItem> menus;
+
+  const _NaverMenuImportSheet({required this.menus});
+
+  @override
+  State<_NaverMenuImportSheet> createState() => _NaverMenuImportSheetState();
+}
+
+class _NaverMenuImportSheetState extends State<_NaverMenuImportSheet> {
+  late List<bool> _selected;
+
+  @override
+  void initState() {
+    super.initState();
+    _selected = List.filled(widget.menus.length, true);
+  }
+
+  bool get _allSelected => _selected.every((v) => v);
+
+  void _toggleAll() {
+    final next = !_allSelected;
+    setState(() {
+      _selected = List.filled(widget.menus.length, next);
+    });
+  }
+
+  void _submit() {
+    final result = <NaverMenuItem>[];
+    for (var i = 0; i < widget.menus.length; i++) {
+      if (_selected[i]) result.add(widget.menus[i]);
+    }
+    Navigator.pop(context, result);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final viewInsets = MediaQuery.of(context).viewInsets.bottom;
+    final selectedCount = _selected.where((v) => v).length;
+
+    return Padding(
+      padding: EdgeInsets.only(bottom: viewInsets),
+      child: Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // 핸들바
+            const SizedBox(height: 12),
+            Container(
+              width: 36,
+              height: 4,
+              decoration: BoxDecoration(
+                color: OpusColors.gray200,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // 헤더
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Row(
+                children: [
+                  Container(
+                    width: 28,
+                    height: 28,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF0FBF4),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    alignment: Alignment.center,
+                    child: const Icon(Icons.restaurant_menu_rounded,
+                        size: 16, color: Color(0xFF03C75A)),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      '네이버에서 가져온 메뉴',
+                      style: GoogleFonts.notoSansKr(
+                        fontSize: 17,
+                        fontWeight: FontWeight.w700,
+                        color: OpusColors.gray900,
+                      ),
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: _toggleAll,
+                    child: Text(
+                      _allSelected ? '전체 해제' : '전체 선택',
+                      style: GoogleFonts.notoSansKr(
+                        fontSize: 13,
+                        color: OpusColors.purple600,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 4),
+
+            // 메뉴 목록
+            ConstrainedBox(
+              constraints: BoxConstraints(
+                maxHeight: MediaQuery.of(context).size.height * 0.45,
+              ),
+              child: ListView.separated(
+                shrinkWrap: true,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                itemCount: widget.menus.length,
+                separatorBuilder: (_, __) =>
+                    const Divider(height: 1, color: OpusColors.gray100),
+                itemBuilder: (context, i) {
+                  final m = widget.menus[i];
+                  return CheckboxListTile(
+                    value: _selected[i],
+                    onChanged: (v) =>
+                        setState(() => _selected[i] = v ?? false),
+                    activeColor: OpusColors.purple600,
+                    contentPadding:
+                        const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+                    title: Text(
+                      m.name,
+                      style: GoogleFonts.notoSansKr(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: OpusColors.gray900,
+                      ),
+                    ),
+                    subtitle: m.category.isNotEmpty
+                        ? Text(
+                            m.category,
+                            style: GoogleFonts.notoSansKr(
+                              fontSize: 11,
+                              color: OpusColors.gray400,
+                            ),
+                          )
+                        : null,
+                    secondary: m.price != null && m.price! > 0
+                        ? PriceText(won: m.price!, size: 14)
+                        : Text(
+                            '가격 미제공',
+                            style: GoogleFonts.notoSansKr(
+                              fontSize: 12,
+                              color: OpusColors.gray400,
+                            ),
+                          ),
+                  );
+                },
+              ),
+            ),
+
+            // 저장 버튼
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+              child: SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: selectedCount > 0 ? _submit : null,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: OpusColors.purple600,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: Text(
+                    '$selectedCount개 메뉴 저장하기',
+                    style: GoogleFonts.notoSansKr(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );

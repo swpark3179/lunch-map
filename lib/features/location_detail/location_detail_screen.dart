@@ -224,6 +224,9 @@ class _LocationDetailScreenState extends ConsumerState<LocationDetailScreen> {
           const SizedBox(height: 16),
           MenuListSection(
             locationId: location.id,
+            locationName: location.name,
+            lat: location.lat,
+            lng: location.lng,
             editMode: _editMode,
           ),
           const SizedBox(height: 16),
