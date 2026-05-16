@@ -123,13 +123,24 @@ class _LocationDetailScreenState extends ConsumerState<LocationDetailScreen> {
   Future<void> _callPhone(String phone) async {
     final digits = phone.replaceAll(RegExp(r'[^0-9+]'), '');
     if (digits.isEmpty) return;
-    final uri = Uri(scheme: 'tel', path: digits);
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri);
-    } else if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('전화 앱을 열 수 없습니다')),
+    final uri = Uri.parse('tel:$digits');
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final ok = await launchUrl(
+        uri,
+        mode: LaunchMode.externalApplication,
       );
+      if (!ok && mounted) {
+        messenger.showSnackBar(
+          const SnackBar(content: Text('전화 앱을 열 수 없습니다')),
+        );
+      }
+    } catch (_) {
+      if (mounted) {
+        messenger.showSnackBar(
+          const SnackBar(content: Text('전화 앱을 열 수 없습니다')),
+        );
+      }
     }
   }
 
@@ -137,14 +148,20 @@ class _LocationDetailScreenState extends ConsumerState<LocationDetailScreen> {
   Widget build(BuildContext context) {
     if (_isLoading) {
       return Scaffold(
-        appBar: AppBar(title: const Text('장소 상세')),
+        appBar: AppBar(
+          leading: const _BackToListButton(),
+          title: const Text('장소 상세'),
+        ),
         body: const Center(child: CircularProgressIndicator()),
       );
     }
 
     if (_error != null || _location == null) {
       return Scaffold(
-        appBar: AppBar(title: const Text('장소 상세')),
+        appBar: AppBar(
+          leading: const _BackToListButton(),
+          title: const Text('장소 상세'),
+        ),
         body: Center(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -168,6 +185,7 @@ class _LocationDetailScreenState extends ConsumerState<LocationDetailScreen> {
     return Scaffold(
       backgroundColor: OpusColors.bgCanvas,
       appBar: AppBar(
+        leading: _BackToListButton(),
         title: const Text('장소 상세'),
         actions: [
           if (_editMode)
@@ -397,6 +415,20 @@ class _EditingHeader extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// 상세 → 장소 목록(지도 뷰)로 이동하는 뒤로가기 버튼.
+class _BackToListButton extends StatelessWidget {
+  const _BackToListButton();
+
+  @override
+  Widget build(BuildContext context) {
+    return IconButton(
+      tooltip: '장소 목록으로',
+      icon: const Icon(Icons.arrow_back_rounded),
+      onPressed: () => context.go('/locations'),
     );
   }
 }
