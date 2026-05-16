@@ -20,6 +20,9 @@ Deno.serve(async (req) => {
       });
     }
 
+    // 네이버 Local Search API는 display 최댓값이 5다.
+    const safeDisplay = Math.min(5, Math.max(1, Number(display) || 5));
+
     const clientId = Deno.env.get("NAVER_CLIENT_ID");
     const clientSecret = Deno.env.get("NAVER_CLIENT_SECRET");
 
@@ -33,7 +36,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    const url = `https://openapi.naver.com/v1/search/local.json?query=${encodeURIComponent(query)}&display=${display}&sort=comment`;
+    const url = `https://openapi.naver.com/v1/search/local.json?query=${encodeURIComponent(query)}&display=${safeDisplay}&sort=comment`;
 
     const naverRes = await fetch(url, {
       headers: {
