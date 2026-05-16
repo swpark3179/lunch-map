@@ -1,29 +1,25 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../models/comment.dart';
 import '../models/menu.dart';
-import '../models/review.dart';
 
 class MenuService {
   static SupabaseClient get _client => Supabase.instance.client;
   static const _table = 'menus';
 
-  /// 특정 식당의 메뉴 목록 (menu_stats 뷰 join 으로 별점/리뷰 수 포함)
   static Future<List<MenuItem>> getByLocation(String locationId) async {
     final rows = await _client
         .from(_table)
-        .select('*, menu_stats(avg_stars, review_count)')
+        .select()
         .eq('location_id', locationId)
         .order('sort_order')
         .order('created_at');
     return (rows as List).map((j) => MenuItem.fromJson(j)).toList();
   }
 
-  /// 모든 메뉴(예산 추천용)
+  /// 예산 추천용 — 모든 메뉴.
   static Future<List<MenuItem>> getAllWithStats() async {
-    final rows = await _client
-        .from(_table)
-        .select('*, menu_stats(avg_stars, review_count)')
-        .order('price');
+    final rows = await _client.from(_table).select().order('price');
     return (rows as List).map((j) => MenuItem.fromJson(j)).toList();
   }
 
@@ -66,36 +62,35 @@ class MenuService {
   }
 }
 
-class ReviewService {
+/// 식당 단위 댓글 서비스
+class CommentService {
   static SupabaseClient get _client => Supabase.instance.client;
-  static const _table = 'reviews';
+  static const _table = 'location_comments';
 
-  static Future<List<Review>> getByMenu(String menuId) async {
+  static Future<List<LocationComment>> getByLocation(String locationId) async {
     final rows = await _client
         .from(_table)
         .select()
-        .eq('menu_id', menuId)
+        .eq('location_id', locationId)
         .order('created_at', ascending: false);
-    return (rows as List).map((j) => Review.fromJson(j)).toList();
+    return (rows as List).map((j) => LocationComment.fromJson(j)).toList();
   }
 
-  static Future<Review> add({
-    required String menuId,
+  static Future<LocationComment> add({
+    required String locationId,
     required String userName,
-    required int stars,
-    String? comment,
+    required String body,
   }) async {
     final row = await _client
         .from(_table)
         .insert({
-          'menu_id': menuId,
+          'location_id': locationId,
           'user_name': userName.isEmpty ? '익명' : userName,
-          'stars': stars.clamp(1, 5),
-          if (comment != null && comment.isNotEmpty) 'comment': comment,
+          'body': body,
         })
         .select()
         .single();
-    return Review.fromJson(row);
+    return LocationComment.fromJson(row);
   }
 
   static Future<void> delete(String id) async {

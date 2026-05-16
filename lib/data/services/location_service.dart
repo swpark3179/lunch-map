@@ -61,6 +61,26 @@ class LocationService {
     return Location.fromJson(response);
   }
 
+  /// 기본 정보(이름·전화번호) 업데이트.
+  /// 빈 문자열로 보내면 해당 컬럼을 NULL 로 비운다.
+  static Future<Location> updateInfo(
+    String id, {
+    required String name,
+    String? phone,
+  }) async {
+    final patch = <String, dynamic>{
+      'name': name,
+      'phone': (phone == null || phone.isEmpty) ? null : phone,
+    };
+    final response = await _client
+        .from(_tableName)
+        .update(patch)
+        .eq('id', id)
+        .select()
+        .single();
+    return Location.fromJson(response);
+  }
+
   /// 위치 좌표 업데이트 — coords 는 트리거가 갱신한다.
   static Future<Location> updateCoordinates(
     String id, {
