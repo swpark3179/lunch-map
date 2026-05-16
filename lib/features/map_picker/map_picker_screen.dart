@@ -318,7 +318,6 @@ class _MapPickerScreenState extends ConsumerState<MapPickerScreen> {
           hasCoords: true, // 모바일에서는 항상 지도 좌표 사용
           isSaving: _isSaving,
           nameCtrl: _nameCtrl,
-          addressCtrl: _addressCtrl,
           phoneCtrl: _phoneCtrl,
           onSubmit: _save,
         ),
@@ -329,6 +328,7 @@ class _MapPickerScreenState extends ConsumerState<MapPickerScreen> {
   /// 웹/데스크탑: 지도 사용 불가 → 네이버 검색 + 폼.
   Widget _buildWebLayout() {
     return ListView(
+      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
       children: [
         Container(
@@ -377,7 +377,6 @@ class _MapPickerScreenState extends ConsumerState<MapPickerScreen> {
             hasCoords: _hasCoordsFromNaver,
             isSaving: _isSaving,
             nameCtrl: _nameCtrl,
-            addressCtrl: _addressCtrl,
             phoneCtrl: _phoneCtrl,
             onSubmit: _save,
           ),
@@ -694,7 +693,6 @@ class _BottomPanel extends StatelessWidget {
   final bool hasCoords;
   final bool isSaving;
   final TextEditingController nameCtrl;
-  final TextEditingController addressCtrl;
   final TextEditingController phoneCtrl;
   final VoidCallback onSubmit;
 
@@ -706,112 +704,110 @@ class _BottomPanel extends StatelessWidget {
     required this.hasCoords,
     required this.isSaving,
     required this.nameCtrl,
-    required this.addressCtrl,
     required this.phoneCtrl,
     required this.onSubmit,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: EdgeInsets.fromLTRB(
-        20,
-        16,
-        20,
-        MediaQuery.of(context).padding.bottom + 16,
-      ),
-      decoration: BoxDecoration(
-        color: Theme.of(context).scaffoldBackgroundColor,
-        borderRadius: const BorderRadius.only(
-          topLeft: Radius.circular(24),
-          topRight: Radius.circular(24),
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      // 아래로 쓸어내리면 키보드를 닫는다.
+      onVerticalDragUpdate: (details) {
+        if (details.primaryDelta != null && details.primaryDelta! > 6) {
+          FocusManager.instance.primaryFocus?.unfocus();
+        }
+      },
+      child: Container(
+        padding: EdgeInsets.fromLTRB(
+          20,
+          16,
+          20,
+          MediaQuery.of(context).padding.bottom + 16,
         ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.12),
-            blurRadius: 20,
-            offset: const Offset(0, -4),
+        decoration: BoxDecoration(
+          color: Theme.of(context).scaffoldBackgroundColor,
+          borderRadius: const BorderRadius.only(
+            topLeft: Radius.circular(24),
+            topRight: Radius.circular(24),
           ),
-        ],
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (isFixMode && targetName != null) ...[
-            Text(
-              targetName!,
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.12),
+              blurRadius: 20,
+              offset: const Offset(0, -4),
             ),
-            const SizedBox(height: 8),
           ],
-          if (!isFixMode) ...[
-            TextField(
-              controller: nameCtrl,
-              textInputAction: TextInputAction.next,
-              decoration: const InputDecoration(
-                labelText: '식당 이름 *',
-                prefixIcon: Icon(Icons.restaurant),
-                isDense: true,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (isFixMode && targetName != null) ...[
+              Text(
+                targetName!,
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
               ),
-            ),
-            const SizedBox(height: 8),
-            TextField(
-              controller: addressCtrl,
-              textInputAction: TextInputAction.next,
-              decoration: const InputDecoration(
-                labelText: '주소 (선택)',
-                prefixIcon: Icon(Icons.place_outlined),
-                isDense: true,
+              const SizedBox(height: 8),
+            ],
+            if (!isFixMode) ...[
+              TextField(
+                controller: nameCtrl,
+                textInputAction: TextInputAction.next,
+                decoration: const InputDecoration(
+                  labelText: '식당 이름 *',
+                  prefixIcon: Icon(Icons.restaurant),
+                  isDense: true,
+                ),
               ),
-            ),
-            const SizedBox(height: 8),
-            TextField(
-              controller: phoneCtrl,
-              keyboardType: TextInputType.phone,
-              decoration: const InputDecoration(
-                labelText: '전화번호 (선택)',
-                prefixIcon: Icon(Icons.phone_outlined),
-                isDense: true,
+              const SizedBox(height: 8),
+              TextField(
+                controller: phoneCtrl,
+                keyboardType: TextInputType.phone,
+                decoration: const InputDecoration(
+                  labelText: '전화번호 (선택)',
+                  prefixIcon: Icon(Icons.phone_outlined),
+                  isDense: true,
+                ),
               ),
-            ),
+              const SizedBox(height: 12),
+            ],
+            _CoordsRow(lat: currentLat, lng: currentLng, hasCoords: hasCoords),
             const SizedBox(height: 12),
-          ],
-          _CoordsRow(lat: currentLat, lng: currentLng, hasCoords: hasCoords),
-          const SizedBox(height: 12),
-          SizedBox(
-            width: double.infinity,
-            height: 52,
-            child: ElevatedButton.icon(
-              onPressed: isSaving ? null : onSubmit,
-              icon: isSaving
-                  ? const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: Colors.white,
-                      ),
-                    )
-                  : const Icon(Icons.check_rounded),
-              label: Text(
-                isSaving
-                    ? '저장 중...'
-                    : isFixMode
-                        ? '이 위치로 확정'
-                        : '이 위치로 등록',
-                style: const TextStyle(fontSize: 16),
-              ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF10B981),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
+            SizedBox(
+              width: double.infinity,
+              height: 52,
+              child: ElevatedButton.icon(
+                onPressed: isSaving ? null : onSubmit,
+                icon: isSaving
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : const Icon(Icons.check_rounded),
+                label: Text(
+                  isSaving
+                      ? '저장 중...'
+                      : isFixMode
+                          ? '이 위치로 확정'
+                          : '이 위치로 등록',
+                  style: const TextStyle(fontSize: 16),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF10B981),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
                 ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -826,7 +822,6 @@ class _BottomPanelInline extends StatelessWidget {
   final bool hasCoords;
   final bool isSaving;
   final TextEditingController nameCtrl;
-  final TextEditingController addressCtrl;
   final TextEditingController phoneCtrl;
   final VoidCallback onSubmit;
 
@@ -838,7 +833,6 @@ class _BottomPanelInline extends StatelessWidget {
     required this.hasCoords,
     required this.isSaving,
     required this.nameCtrl,
-    required this.addressCtrl,
     required this.phoneCtrl,
     required this.onSubmit,
   });
@@ -869,15 +863,6 @@ class _BottomPanelInline extends StatelessWidget {
             decoration: const InputDecoration(
               labelText: '식당 이름 *',
               prefixIcon: Icon(Icons.restaurant),
-              isDense: true,
-            ),
-          ),
-          const SizedBox(height: 8),
-          TextField(
-            controller: addressCtrl,
-            decoration: const InputDecoration(
-              labelText: '주소 (선택)',
-              prefixIcon: Icon(Icons.place_outlined),
               isDense: true,
             ),
           ),
