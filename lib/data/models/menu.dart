@@ -7,7 +7,8 @@ class MenuItem {
   final int sortOrder;
   final DateTime createdAt;
 
-  /// 집계 — menu_stats 뷰 join 으로 채워진다 (없으면 0).
+  /// 메뉴 단위 별점/후기 모델은 제거되었지만 예산 추천 로직과의
+  /// 호환을 위해 필드는 남겨두고 항상 0 으로 채운다.
   final double avgStars;
   final int reviewCount;
 
@@ -23,17 +24,6 @@ class MenuItem {
   });
 
   factory MenuItem.fromJson(Map<String, dynamic> json) {
-    final stats = json['menu_stats'];
-    double avg = 0;
-    int count = 0;
-    if (stats is Map) {
-      avg = (stats['avg_stars'] as num?)?.toDouble() ?? 0;
-      count = (stats['review_count'] as num?)?.toInt() ?? 0;
-    } else if (stats is List && stats.isNotEmpty) {
-      final s = stats.first as Map;
-      avg = (s['avg_stars'] as num?)?.toDouble() ?? 0;
-      count = (s['review_count'] as num?)?.toInt() ?? 0;
-    }
     return MenuItem(
       id: json['id'] as String,
       locationId: json['location_id'] as String,
@@ -41,8 +31,6 @@ class MenuItem {
       price: (json['price'] as num?)?.toInt() ?? 0,
       sortOrder: (json['sort_order'] as num?)?.toInt() ?? 0,
       createdAt: DateTime.parse(json['created_at'] as String),
-      avgStars: avg,
-      reviewCount: count,
     );
   }
 
