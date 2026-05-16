@@ -130,9 +130,10 @@ class NaverSearchService {
   /// 키워드로 네이버 장소를 검색해 전체 결과 목록 반환 (식당 추가용).
   /// "거제 " 접두어를 자동으로 붙여 지역 검색을 수행한다.
   static Future<List<NaverPlaceInfo>> searchAll(String query) async {
+    // 네이버 Local Search API는 display 최댓값이 5다. 그 이상이면 400 오류.
     final response = await _client.functions.invoke(
       'naver-search',
-      body: {'query': '거제 $query', 'display': 10},
+      body: {'query': '거제 $query', 'display': 5},
     );
 
     final data = response.data;
