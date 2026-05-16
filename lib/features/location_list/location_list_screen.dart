@@ -369,53 +369,110 @@ class _LocationCard extends StatelessWidget {
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 3,
-                          ),
-                          decoration: BoxDecoration(
-                            color:
-                                location.isFixed
-                                    ? AppTheme.pinFixed.withValues(alpha: 0.1)
-                                    : AppTheme.pinUnfixed.withValues(
-                                      alpha: 0.1,
-                                    ),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Text(
-                            location.isFixed ? '확정' : '미확정',
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600,
+                        if (location.naverLinked)
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 3,
+                            ),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF03C75A)
+                                  .withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.link_rounded,
+                                    size: 11, color: Color(0xFF03C75A)),
+                                SizedBox(width: 3),
+                                Text(
+                                  '네이버',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                    color: Color(0xFF03C75A),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          )
+                        else
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 3,
+                            ),
+                            decoration: BoxDecoration(
                               color:
                                   location.isFixed
-                                      ? AppTheme.pinFixed
-                                      : AppTheme.pinUnfixed,
+                                      ? AppTheme.pinFixed.withValues(alpha: 0.1)
+                                      : AppTheme.pinUnfixed.withValues(
+                                        alpha: 0.1,
+                                      ),
+                              borderRadius: BorderRadius.circular(8),
                             ),
+                            child: Text(
+                              location.isFixed ? '확정' : '미확정',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color:
+                                    location.isFixed
+                                        ? AppTheme.pinFixed
+                                        : AppTheme.pinUnfixed,
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                    if (location.naverLinked) ...[
+                      // POI 연결 시: 네이버에서 가져온 카테고리 + 주소만 표기.
+                      // 좌표는 네이버 POI 좌표이므로 별도 표시하지 않는다.
+                      if (location.naverCategory != null &&
+                          location.naverCategory!.isNotEmpty) ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          location.naverCategory!,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: const Color(0xFF15803D),
+                            fontWeight: FontWeight.w500,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                      if (location.address != null &&
+                          location.address!.isNotEmpty) ...[
+                        const SizedBox(height: 2),
+                        Text(
+                          location.address!,
+                          style: theme.textTheme.bodySmall,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ] else ...[
+                      if (location.address != null &&
+                          location.address!.isNotEmpty) ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          location.address!,
+                          style: theme.textTheme.bodySmall,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                      if (location.hasCoordinates) ...[
+                        const SizedBox(height: 2),
+                        Text(
+                          '📍 ${location.lat!.toStringAsFixed(6)}, ${location.lng!.toStringAsFixed(6)}',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: Colors.grey[500],
+                            fontSize: 11,
                           ),
                         ),
                       ],
-                    ),
-                    if (location.address != null &&
-                        location.address!.isNotEmpty) ...[
-                      const SizedBox(height: 4),
-                      Text(
-                        location.address!,
-                        style: theme.textTheme.bodySmall,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
-                    if (location.hasCoordinates) ...[
-                      const SizedBox(height: 2),
-                      Text(
-                        '📍 ${location.lat!.toStringAsFixed(6)}, ${location.lng!.toStringAsFixed(6)}',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: Colors.grey[500],
-                          fontSize: 11,
-                        ),
-                      ),
                     ],
                   ],
                 ),

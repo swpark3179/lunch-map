@@ -165,16 +165,20 @@ class _LocationMapViewState extends State<LocationMapView> {
     final markers = <NMarker>{};
     for (final loc in widget.locations) {
       if (!loc.hasCoordinates) continue;
+      // 네이버 POI 와 연결된 장소는 기본 지도가 이미 라벨을 그리므로
+      // 자체 caption 을 생략해 식당명이 중복으로 표시되는 문제를 방지한다.
       final marker = NMarker(
         id: 'location_${loc.id}',
         position: NLatLng(loc.lat!, loc.lng!),
         icon: loc.isFixed ? fixedIcon : unfixedIcon,
-        caption: NOverlayCaption(
-          text: loc.name,
-          textSize: 12,
-          color: const Color(0xFF0F172A),
-          haloColor: Colors.white,
-        ),
+        caption: loc.naverLinked
+            ? null
+            : NOverlayCaption(
+                text: loc.name,
+                textSize: 12,
+                color: const Color(0xFF0F172A),
+                haloColor: Colors.white,
+              ),
       );
       marker.setOnTapListener((overlay) {
         widget.onMarkerTap(loc);

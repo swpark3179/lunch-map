@@ -20,6 +20,10 @@ class MenuListSection extends StatefulWidget {
   final double? lng;
   final bool editMode;
 
+  /// 이 식당이 네이버 POI 와 연결되어 있는지 여부. true 이면
+  /// 메뉴가 이미 있더라도 "네이버에서 자동 가져오기" 버튼을 노출한다.
+  final bool naverLinked;
+
   const MenuListSection({
     super.key,
     required this.locationId,
@@ -27,6 +31,7 @@ class MenuListSection extends StatefulWidget {
     this.lat,
     this.lng,
     required this.editMode,
+    this.naverLinked = false,
   });
 
   @override
@@ -225,6 +230,15 @@ class _MenuListSectionState extends State<MenuListSection> {
                     onPressed: _addMenu,
                     icon: const Icon(Icons.add_rounded, size: 18),
                     label: const Text('메뉴 추가'),
+                  ),
+                ),
+              // POI 연결된 식당은 메뉴 유무와 관계없이 자동 가져오기 버튼 노출.
+              if (widget.editMode && widget.naverLinked && menus.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                  child: _NaverFetchButton(
+                    loading: _fetchingNaver,
+                    onTap: _importFromNaver,
                   ),
                 ),
             ],

@@ -100,6 +100,33 @@ class LocationListNotifier extends AsyncNotifier<List<Location>> {
     await refresh();
   }
 
+  /// 네이버 POI 연결 갱신(또는 해제) — POI 정보로 기본 필드도 동기화한다.
+  Future<Location> updateNaverLink(
+    String id, {
+    required bool linked,
+    String? link,
+    String? category,
+    String? name,
+    String? address,
+    String? phone,
+    double? lat,
+    double? lng,
+  }) async {
+    final updated = await LocationService.updateNaverLink(
+      id,
+      linked: linked,
+      link: link,
+      category: category,
+      name: name,
+      address: address,
+      phone: phone,
+      lat: lat,
+      lng: lng,
+    );
+    await refresh();
+    return updated;
+  }
+
   /// 장소 삭제
   Future<void> deleteLocation(String id) async {
     await LocationService.delete(id);

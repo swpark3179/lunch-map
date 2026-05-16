@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/constants/map_constants.dart';
 import '../../data/models/location.dart';
@@ -49,6 +50,10 @@ class _MapPickerScreenState extends ConsumerState<MapPickerScreen> {
   /// 네이버 지도 POI 심볼을 탭해 선택한 식당 정보(중복 방지를 위해 좌표는 네이버
   /// POI 좌표를 그대로 사용한다).
   String? _linkedNaverPlaceName;
+
+  /// POI 연결 시 표시/저장할 부가 정보(카테고리, 링크, 도로명 주소).
+  /// 심볼 탭 직후엔 null 일 수 있으며, 보강이 끝나면 채워진다.
+  NaverPlaceInfo? _linkedNaverInfo;
 
   // ── 네이버 검색 상태 ────────────────────────────────────
   final _searchCtrl = TextEditingController();
@@ -157,6 +162,7 @@ class _MapPickerScreenState extends ConsumerState<MapPickerScreen> {
 
     setState(() {
       _linkedNaverPlaceName = name;
+      _linkedNaverInfo = null;
       _resultsExpanded = false;
     });
 
@@ -191,7 +197,7 @@ class _MapPickerScreenState extends ConsumerState<MapPickerScreen> {
       if (_phoneCtrl.text.isEmpty && info.telephone.isNotEmpty) {
         _phoneCtrl.text = info.telephone;
       }
-      setState(() {});
+      setState(() => _linkedNaverInfo = info);
     } catch (_) {
       // 보강 실패는 무시
     }
@@ -214,6 +220,8 @@ class _MapPickerScreenState extends ConsumerState<MapPickerScreen> {
 
     setState(() {
       _resultsExpanded = false;
+      _linkedNaverPlaceName = place.title;
+      _linkedNaverInfo = place;
     });
 
     ScaffoldMessenger.of(context).showSnackBar(
@@ -249,6 +257,9 @@ class _MapPickerScreenState extends ConsumerState<MapPickerScreen> {
     final address = _addressCtrl.text.trim();
     final phone = _phoneCtrl.text.trim();
 
+    final linkedInfo = _linkedNaverInfo;
+    final linked = _linkedNaverPlaceName != null;
+
     final loc = Location(
       id: '',
       name: name,
@@ -258,6 +269,9 @@ class _MapPickerScreenState extends ConsumerState<MapPickerScreen> {
       lng: hasCoords ? _currentLng : null,
       isFixed: hasCoords,
       createdAt: DateTime.now(),
+      naverLinked: linked,
+      naverLink: linkedInfo?.link,
+      naverCategory: linkedInfo?.category,
     );
 
     setState(() => _isSaving = true);
@@ -376,9 +390,13 @@ class _MapPickerScreenState extends ConsumerState<MapPickerScreen> {
                   bottom: 12,
                   child: _LinkHintBanner(
                     linkedName: _linkedNaverPlaceName,
+                    info: _linkedNaverInfo,
                     onClear: _linkedNaverPlaceName == null
                         ? null
-                        : () => setState(() => _linkedNaverPlaceName = null),
+                        : () => setState(() {
+                              _linkedNaverPlaceName = null;
+                              _linkedNaverInfo = null;
+                            }),
                   ),
                 ),
             ],
@@ -393,6 +411,7 @@ class _MapPickerScreenState extends ConsumerState<MapPickerScreen> {
           isSaving: _isSaving,
           nameCtrl: _nameCtrl,
           phoneCtrl: _phoneCtrl,
+          linkedInfo: _linkedNaverInfo,
           onSubmit: _save,
         ),
       ],
@@ -452,6 +471,7 @@ class _MapPickerScreenState extends ConsumerState<MapPickerScreen> {
             isSaving: _isSaving,
             nameCtrl: _nameCtrl,
             phoneCtrl: _phoneCtrl,
+            linkedInfo: _linkedNaverInfo,
             onSubmit: _save,
           ),
         ] else
@@ -768,6 +788,7 @@ class _BottomPanel extends StatelessWidget {
   final bool isSaving;
   final TextEditingController nameCtrl;
   final TextEditingController phoneCtrl;
+  final NaverPlaceInfo? linkedInfo;
   final VoidCallback onSubmit;
 
   const _BottomPanel({
@@ -779,6 +800,7 @@ class _BottomPanel extends StatelessWidget {
     required this.isSaving,
     required this.nameCtrl,
     required this.phoneCtrl,
+    required this.linkedInfo,
     required this.onSubmit,
   });
 
@@ -847,6 +869,10 @@ class _BottomPanel extends StatelessWidget {
               ),
               const SizedBox(height: 12),
             ],
+            if (!isFixMode && linkedInfo != null) ...[
+              _NaverInfoCard(info: linkedInfo!),
+              const SizedBox(height: 12),
+            ],
             _CoordsRow(lat: currentLat, lng: currentLng, hasCoords: hasCoords),
             const SizedBox(height: 12),
             SizedBox(
@@ -897,6 +923,7 @@ class _BottomPanelInline extends StatelessWidget {
   final bool isSaving;
   final TextEditingController nameCtrl;
   final TextEditingController phoneCtrl;
+  final NaverPlaceInfo? linkedInfo;
   final VoidCallback onSubmit;
 
   const _BottomPanelInline({
@@ -908,6 +935,7 @@ class _BottomPanelInline extends StatelessWidget {
     required this.isSaving,
     required this.nameCtrl,
     required this.phoneCtrl,
+    required this.linkedInfo,
     required this.onSubmit,
   });
 
@@ -951,6 +979,10 @@ class _BottomPanelInline extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 12),
+          if (linkedInfo != null) ...[
+            _NaverInfoCard(info: linkedInfo!),
+            const SizedBox(height: 12),
+          ],
           _CoordsRow(lat: currentLat, lng: currentLng, hasCoords: hasCoords),
           const SizedBox(height: 12),
           SizedBox(
@@ -991,9 +1023,14 @@ class _BottomPanelInline extends StatelessWidget {
 /// - 연결 후: "네이버: 식당이름 (연결됨)"
 class _LinkHintBanner extends StatelessWidget {
   final String? linkedName;
+  final NaverPlaceInfo? info;
   final VoidCallback? onClear;
 
-  const _LinkHintBanner({required this.linkedName, required this.onClear});
+  const _LinkHintBanner({
+    required this.linkedName,
+    required this.info,
+    required this.onClear,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -1014,17 +1051,33 @@ class _LinkHintBanner extends StatelessWidget {
             ),
             const SizedBox(width: 8),
             Expanded(
-              child: Text(
-                linked
-                    ? '네이버 POI 연결됨: ${linkedName!}'
-                    : '지도의 식당을 탭하면 네이버 POI와 연결해 등록할 수 있어요',
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: linked ? Colors.white : const Color(0xFF0F172A),
-                ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    linked
+                        ? '네이버 POI 연결됨: ${linkedName!}'
+                        : '지도의 식당을 탭하면 네이버 POI와 연결해 등록할 수 있어요',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: linked ? Colors.white : const Color(0xFF0F172A),
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  if (linked && (info?.category.isNotEmpty ?? false))
+                    Text(
+                      info!.category,
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: Colors.white,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                ],
               ),
             ),
             if (onClear != null)
@@ -1098,3 +1151,113 @@ class _CoordsRow extends StatelessWidget {
     );
   }
 }
+
+
+/// 등록 화면에서 POI 가 연결되면 네이버에서 가져온 부가 정보를 보여주는 카드.
+class _NaverInfoCard extends StatelessWidget {
+  final NaverPlaceInfo info;
+
+  const _NaverInfoCard({required this.info});
+
+  Future<void> _openLink() async {
+    final url = info.link;
+    if (url.isEmpty) return;
+    final uri = Uri.tryParse(url);
+    if (uri == null) return;
+    await launchUrl(uri, mode: LaunchMode.externalApplication);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF0FBF4),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: const Color(0xFF03C75A).withValues(alpha: 0.3)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.link_rounded,
+                  size: 16, color: Color(0xFF03C75A)),
+              const SizedBox(width: 6),
+              const Text(
+                '네이버 POI 정보',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF03C75A),
+                ),
+              ),
+              const Spacer(),
+              if (info.hasLink)
+                TextButton.icon(
+                  onPressed: _openLink,
+                  icon: const Icon(Icons.open_in_new_rounded, size: 14),
+                  label: const Text('열기', style: TextStyle(fontSize: 12)),
+                  style: TextButton.styleFrom(
+                    foregroundColor: const Color(0xFF03C75A),
+                    visualDensity: VisualDensity.compact,
+                    padding: const EdgeInsets.symmetric(horizontal: 6),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            info.title,
+            style: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF0F172A),
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          if (info.category.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 2),
+              child: Text(
+                info.category,
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: Color(0xFF15803D),
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+          if (info.roadAddress.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 2),
+              child: Text(
+                info.roadAddress,
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: Color(0xFF334155),
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          if (info.telephone.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 2),
+              child: Text(
+                info.telephone,
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: Color(0xFF334155),
+                  fontFamily: 'monospace',
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
