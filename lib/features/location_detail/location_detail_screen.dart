@@ -229,7 +229,6 @@ class _LocationDetailScreenState extends ConsumerState<LocationDetailScreen> {
           const SizedBox(height: 16),
           CommentListSection(
             locationId: location.id,
-            editMode: _editMode,
           ),
         ],
       ),

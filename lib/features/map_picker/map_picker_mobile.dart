@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_naver_map/flutter_naver_map.dart';
 
@@ -10,11 +11,16 @@ class MapPickerBody extends StatefulWidget {
   final double initialLng;
   final void Function(double lat, double lng) onCameraIdle;
 
+  /// 외부에서 카메라를 이동시킬 때 사용하는 명령 채널.
+  /// 값이 갱신될 때마다 해당 좌표로 카메라가 이동한다.
+  final ValueListenable<({double lat, double lng})?>? cameraTarget;
+
   const MapPickerBody({
     super.key,
     required this.initialLat,
     required this.initialLng,
     required this.onCameraIdle,
+    this.cameraTarget,
   });
 
   @override
@@ -23,6 +29,39 @@ class MapPickerBody extends StatefulWidget {
 
 class _MapPickerBodyState extends State<MapPickerBody> {
   NaverMapController? _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    widget.cameraTarget?.addListener(_handleCameraTarget);
+  }
+
+  @override
+  void didUpdateWidget(covariant MapPickerBody oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.cameraTarget != widget.cameraTarget) {
+      oldWidget.cameraTarget?.removeListener(_handleCameraTarget);
+      widget.cameraTarget?.addListener(_handleCameraTarget);
+    }
+  }
+
+  @override
+  void dispose() {
+    widget.cameraTarget?.removeListener(_handleCameraTarget);
+    super.dispose();
+  }
+
+  Future<void> _handleCameraTarget() async {
+    final target = widget.cameraTarget?.value;
+    final controller = _controller;
+    if (target == null || controller == null) return;
+    await controller.updateCamera(
+      NCameraUpdate.withParams(
+        target: NLatLng(target.lat, target.lng),
+        zoom: kDefaultZoom,
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {

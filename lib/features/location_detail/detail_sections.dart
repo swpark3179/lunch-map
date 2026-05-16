@@ -390,14 +390,16 @@ class _MenuEditSheetState extends State<_MenuEditSheet> {
 
 // ─── 댓글 섹션 ──────────────────────────────────────────────
 
+/// 식당 단위 댓글 섹션.
+///
+/// 댓글의 작성/수정/삭제는 장소 자체의 편집 모드와 무관하게
+/// 항상 사용 가능하다 (각 댓글마다 수정/삭제 버튼 노출).
 class CommentListSection extends StatefulWidget {
   final String locationId;
-  final bool editMode;
 
   const CommentListSection({
     super.key,
     required this.locationId,
-    required this.editMode,
   });
 
   @override
@@ -456,7 +458,12 @@ class _CommentListSectionState extends State<CommentListSection> {
 
   Future<void> _submit() async {
     final body = _textController.text.trim();
-    if (body.isEmpty) return;
+    if (body.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('댓글 내용을 입력하세요')),
+      );
+      return;
+    }
     final name = _nameController.text.trim();
     setState(() => _submitting = true);
     try {
@@ -550,11 +557,11 @@ class _CommentListSectionState extends State<CommentListSection> {
                   _CommentTile(
                     comment: comments[i],
                     showDivider: i != comments.length - 1,
-                    editMode: widget.editMode,
                     onEdit: () => _startEdit(comments[i]),
                     onDelete: () => _delete(comments[i]),
                   ),
-              const Divider(height: 1, color: OpusColors.gray100),
+              if (comments.isNotEmpty)
+                const Divider(height: 1, color: OpusColors.gray100),
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
                 child: _composing
@@ -589,14 +596,12 @@ class _CommentListSectionState extends State<CommentListSection> {
 class _CommentTile extends StatelessWidget {
   final LocationComment comment;
   final bool showDivider;
-  final bool editMode;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
 
   const _CommentTile({
     required this.comment,
     required this.showDivider,
-    required this.editMode,
     required this.onEdit,
     required this.onDelete,
   });
@@ -682,24 +687,22 @@ class _CommentTile extends StatelessWidget {
               ],
             ),
           ),
-          if (editMode) ...[
-            IconButton(
-              tooltip: '댓글 수정',
-              onPressed: onEdit,
-              icon: const Icon(Icons.edit_rounded, size: 16),
-              color: OpusColors.gray500,
-              padding: EdgeInsets.zero,
-              constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-            ),
-            IconButton(
-              tooltip: '댓글 삭제',
-              onPressed: onDelete,
-              icon: const Icon(Icons.close_rounded, size: 18),
-              color: OpusColors.gray500,
-              padding: EdgeInsets.zero,
-              constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-            ),
-          ],
+          IconButton(
+            tooltip: '댓글 수정',
+            onPressed: onEdit,
+            icon: const Icon(Icons.edit_rounded, size: 16),
+            color: OpusColors.gray500,
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+          ),
+          IconButton(
+            tooltip: '댓글 삭제',
+            onPressed: onDelete,
+            icon: const Icon(Icons.close_rounded, size: 18),
+            color: OpusColors.gray500,
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+          ),
         ],
       ),
     );

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 /// Web 환경용 지도 플레이스홀더
@@ -7,11 +8,15 @@ class MapPickerBody extends StatelessWidget {
   final double initialLng;
   final void Function(double lat, double lng) onCameraIdle;
 
+  /// 모바일과 시그니처를 맞추기 위한 무시되는 인자.
+  final ValueListenable<({double lat, double lng})?>? cameraTarget;
+
   const MapPickerBody({
     super.key,
     required this.initialLat,
     required this.initialLng,
     required this.onCameraIdle,
+    this.cameraTarget,
   });
 
   @override
