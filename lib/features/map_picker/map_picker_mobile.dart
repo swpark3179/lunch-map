@@ -15,12 +15,17 @@ class MapPickerBody extends StatefulWidget {
   /// 값이 갱신될 때마다 해당 좌표로 카메라가 이동한다.
   final ValueListenable<({double lat, double lng})?>? cameraTarget;
 
+  /// 네이버 POI 심볼(지도에 기본 표시되는 식당 등)을 탭하면 호출된다.
+  /// 등록 화면에서 이 콜백을 넘기면 기본 네이버 팝업 대신 우리가 인터셉트한다.
+  final void Function(String caption, double lat, double lng)? onSymbolTap;
+
   const MapPickerBody({
     super.key,
     required this.initialLat,
     required this.initialLng,
     required this.onCameraIdle,
     this.cameraTarget,
+    this.onSymbolTap,
   });
 
   @override
@@ -84,6 +89,7 @@ class _MapPickerBodyState extends State<MapPickerBody> {
         ),
       );
     }
+    final hasSymbolHandler = widget.onSymbolTap != null;
     return NaverMap(
       options: NaverMapViewOptions(
         initialCameraPosition: NCameraPosition(
@@ -93,12 +99,22 @@ class _MapPickerBodyState extends State<MapPickerBody> {
         mapType: NMapType.basic,
         activeLayerGroups: const [NLayerGroup.building, NLayerGroup.transit],
         locationButtonEnable: true,
-        consumeSymbolTapEvents: false,
+        // 등록 모드에서는 네이버 기본 POI 팝업을 막고 우리가 인터셉트한다.
+        consumeSymbolTapEvents: hasSymbolHandler,
       ),
       onMapReady: (controller) {
         _controller = controller;
         addSamsungRearGateOverlay(controller);
       },
+      onSymbolTapped: hasSymbolHandler
+          ? (symbol) {
+              widget.onSymbolTap!(
+                symbol.caption,
+                symbol.position.latitude,
+                symbol.position.longitude,
+              );
+            }
+          : null,
       onCameraIdle: () async {
         if (_controller != null) {
           final position = await _controller!.getCameraPosition();

@@ -46,6 +46,10 @@ class _MapPickerScreenState extends ConsumerState<MapPickerScreen> {
   /// 모바일에서 지도를 한 번도 움직이지 않은 상태에서도 좌표를 사용할 수 있다.
   bool _hasCoordsFromNaver = false;
 
+  /// 네이버 지도 POI 심볼을 탭해 선택한 식당 정보(중복 방지를 위해 좌표는 네이버
+  /// POI 좌표를 그대로 사용한다).
+  String? _linkedNaverPlaceName;
+
   // ── 네이버 검색 상태 ────────────────────────────────────
   final _searchCtrl = TextEditingController();
   List<NaverPlaceInfo> _naverResults = const [];
@@ -134,6 +138,63 @@ class _MapPickerScreenState extends ConsumerState<MapPickerScreen> {
       _hasSearched = false;
       _searchHadError = false;
     });
+  }
+
+  /// 네이버 지도 위의 식당 POI 심볼을 탭했을 때 호출.
+  /// 좌표는 네이버 POI의 좌표를 그대로 사용해 중복 등록(같은 식당을 다른
+  /// 좌표로 수동 등록)을 방지한다. 이름은 심볼 캡션을 즉시 채우고,
+  /// 주소/전화번호는 네이버 Local Search로 비동기 보강한다.
+  void _onNaverSymbolTap(String caption, double lat, double lng) {
+    if (_isFixMode) return;
+    final name = caption.trim();
+    if (name.isEmpty) return;
+
+    _nameCtrl.text = name;
+    _currentLat = lat;
+    _currentLng = lng;
+    _hasCoordsFromNaver = true;
+    _cameraTarget.value = (lat: lat, lng: lng);
+
+    setState(() {
+      _linkedNaverPlaceName = name;
+      _resultsExpanded = false;
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('"$name" 네이버 지도와 연결됨. 정보를 확인하고 등록하세요.'),
+        backgroundColor: const Color(0xFF03C75A),
+      ),
+    );
+
+    // 주소/전화번호 보강 (실패해도 등록은 가능)
+    _enrichFromNaverSearch(name, lat, lng);
+  }
+
+  Future<void> _enrichFromNaverSearch(
+    String name,
+    double lat,
+    double lng,
+  ) async {
+    try {
+      final info = await NaverSearchService.fetchPlaceInfo(
+        name,
+        lat: lat,
+        lng: lng,
+      );
+      if (info == null || !mounted) return;
+      // 사용자가 그 사이 다른 식당을 다시 탭했으면 무시
+      if (_linkedNaverPlaceName != name) return;
+      if (_addressCtrl.text.isEmpty && info.roadAddress.isNotEmpty) {
+        _addressCtrl.text = info.roadAddress;
+      }
+      if (_phoneCtrl.text.isEmpty && info.telephone.isNotEmpty) {
+        _phoneCtrl.text = info.telephone;
+      }
+      setState(() {});
+    } catch (_) {
+      // 보강 실패는 무시
+    }
   }
 
   /// 네이버 검색 결과를 선택하면 이름/주소/전화/좌표를 자동 채운다.
@@ -304,9 +365,22 @@ class _MapPickerScreenState extends ConsumerState<MapPickerScreen> {
                   initialLng: _currentLng,
                   onCameraIdle: _onCameraMove,
                   cameraTarget: _cameraTarget,
+                  onSymbolTap: _isFixMode ? null : _onNaverSymbolTap,
                 ),
               ),
               const Center(child: _CenterPin()),
+              if (!_isFixMode)
+                Positioned(
+                  left: 12,
+                  right: 12,
+                  bottom: 12,
+                  child: _LinkHintBanner(
+                    linkedName: _linkedNaverPlaceName,
+                    onClear: _linkedNaverPlaceName == null
+                        ? null
+                        : () => setState(() => _linkedNaverPlaceName = null),
+                  ),
+                ),
             ],
           ),
         ),
@@ -907,6 +981,67 @@ class _BottomPanelInline extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// 지도 위에 떠 있는 안내 배너.
+/// - 평소: "지도의 식당을 탭하면 자동으로 연결돼요"
+/// - 연결 후: "네이버: 식당이름 (연결됨)"
+class _LinkHintBanner extends StatelessWidget {
+  final String? linkedName;
+  final VoidCallback? onClear;
+
+  const _LinkHintBanner({required this.linkedName, required this.onClear});
+
+  @override
+  Widget build(BuildContext context) {
+    final linked = linkedName != null;
+    return Material(
+      color: linked ? const Color(0xFF03C75A) : Colors.white,
+      elevation: 4,
+      borderRadius: BorderRadius.circular(10),
+      shadowColor: Colors.black.withValues(alpha: 0.15),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(12, 8, 8, 8),
+        child: Row(
+          children: [
+            Icon(
+              linked ? Icons.link_rounded : Icons.touch_app_outlined,
+              size: 18,
+              color: linked ? Colors.white : const Color(0xFF03C75A),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                linked
+                    ? '네이버 POI 연결됨: ${linkedName!}'
+                    : '지도의 식당을 탭하면 네이버 POI와 연결해 등록할 수 있어요',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: linked ? Colors.white : const Color(0xFF0F172A),
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            if (onClear != null)
+              IconButton(
+                visualDensity: VisualDensity.compact,
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
+                icon: const Icon(
+                  Icons.close_rounded,
+                  size: 18,
+                  color: Colors.white,
+                ),
+                tooltip: '연결 해제',
+                onPressed: onClear,
+              ),
+          ],
+        ),
       ),
     );
   }
