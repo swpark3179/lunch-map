@@ -6,7 +6,6 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/theme/app_theme.dart';
 import '../../data/models/location.dart';
-import '../../data/services/naver_search_service.dart';
 import '../../providers/location_provider.dart';
 
 import 'location_map_view_stub.dart'
@@ -38,88 +37,6 @@ class _LocationListScreenState extends ConsumerState<LocationListScreen> {
     super.dispose();
   }
 
-  Future<void> _addFromNaver(NaverPlaceInfo place) async {
-    final messenger = ScaffoldMessenger.of(context);
-
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder:
-          (ctx) => AlertDialog(
-            title: const Text('식당 추가'),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('"${place.title}"을(를) 목록에 추가하시겠습니까?'),
-                if (place.roadAddress.isNotEmpty) ...[
-                  const SizedBox(height: 8),
-                  Text(
-                    place.roadAddress,
-                    style: const TextStyle(fontSize: 12, color: Colors.grey),
-                  ),
-                ],
-                if (place.placeLat != null) ...[
-                  const SizedBox(height: 6),
-                  Row(
-                    children: [
-                      Icon(
-                        Icons.my_location_rounded,
-                        size: 14,
-                        color: Colors.green[700],
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        '위치 좌표 자동 설정됨',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.green[700],
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ],
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(ctx, false),
-                child: const Text('취소'),
-              ),
-              ElevatedButton(
-                onPressed: () => Navigator.pop(ctx, true),
-                child: const Text('추가'),
-              ),
-            ],
-          ),
-    );
-
-    if (confirmed != true) return;
-    if (!context.mounted) return;
-
-    final hasCoords = place.placeLat != null && place.placeLng != null;
-    final location = Location(
-      id: '',
-      name: place.title,
-      address: place.roadAddress.isNotEmpty ? place.roadAddress : null,
-      lat: place.placeLat,
-      lng: place.placeLng,
-      isFixed: hasCoords,
-      createdAt: DateTime.now(),
-    );
-
-    await ref.read(locationListProvider.notifier).addLocation(location);
-
-    messenger.showSnackBar(
-      SnackBar(
-        content: Text(
-          '"${place.title}" 추가됨${hasCoords ? " (위치 자동 설정)" : ""}',
-        ),
-        backgroundColor: Colors.green[700],
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final filteredLocations = ref.watch(filteredLocationListProvider);
@@ -144,6 +61,11 @@ class _LocationListScreenState extends ConsumerState<LocationListScreen> {
                 )
                 : const Text('장소 목록'),
         actions: [
+          IconButton(
+            tooltip: '장소 추가',
+            icon: const Icon(Icons.add_location_alt_rounded),
+            onPressed: () => context.go('/map-picker'),
+          ),
           IconButton(
             tooltip: _viewMode == _ViewMode.map ? '리스트로 보기' : '지도로 보기',
             icon: Icon(
@@ -180,9 +102,6 @@ class _LocationListScreenState extends ConsumerState<LocationListScreen> {
       ),
       body: Column(
         children: [
-          // ── 네이버 식당 검색 패널 ──
-          _NaverSearchPanel(onAdd: _addFromNaver),
-
           // ── 필터 칩 ──
           _FilterChips(
             currentFilter: currentFilter,
@@ -309,300 +228,6 @@ class _LocationListScreenState extends ConsumerState<LocationListScreen> {
         context,
       ).showSnackBar(SnackBar(content: Text('"${location.name}" 삭제됨')));
     }
-  }
-}
-
-// ─── 네이버 식당 검색 패널 ───
-class _NaverSearchPanel extends StatefulWidget {
-  final Future<void> Function(NaverPlaceInfo) onAdd;
-
-  const _NaverSearchPanel({required this.onAdd});
-
-  @override
-  State<_NaverSearchPanel> createState() => _NaverSearchPanelState();
-}
-
-class _NaverSearchPanelState extends State<_NaverSearchPanel> {
-  final _controller = TextEditingController();
-  List<NaverPlaceInfo> _results = [];
-  bool _isLoading = false;
-  bool _searched = false;
-  bool _hasError = false;
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  Future<void> _search() async {
-    final q = _controller.text.trim();
-    if (q.isEmpty) return;
-    setState(() {
-      _isLoading = true;
-      _searched = false;
-      _hasError = false;
-      _results = [];
-    });
-    try {
-      final results = await NaverSearchService.searchAll(q);
-      if (mounted) {
-        setState(() {
-          _results = results;
-          _isLoading = false;
-          _searched = true;
-        });
-      }
-    } catch (_) {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-          _searched = true;
-          _hasError = true;
-        });
-      }
-    }
-  }
-
-  void _clear() {
-    _controller.clear();
-    setState(() {
-      _results = [];
-      _searched = false;
-      _hasError = false;
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
-      child: Column(
-        children: [
-          // ── 검색창 ──
-          TextField(
-            controller: _controller,
-            textInputAction: TextInputAction.search,
-            onSubmitted: (_) => _search(),
-            onChanged: (_) => setState(() {}),
-            decoration: InputDecoration(
-              hintText: '네이버에서 식당 검색 후 추가 (예: 거북이식당)',
-              prefixIcon: const Icon(Icons.storefront_rounded),
-              suffixIcon: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (_controller.text.isNotEmpty)
-                    IconButton(
-                      icon: const Icon(Icons.close_rounded, size: 20),
-                      onPressed: _clear,
-                    ),
-                  IconButton(
-                    icon: const Icon(Icons.search_rounded, size: 20),
-                    onPressed: _search,
-                  ),
-                ],
-              ),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 12,
-              ),
-            ),
-          ),
-
-          // ── 로딩 ──
-          if (_isLoading)
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 12),
-              child: Center(
-                child: CircularProgressIndicator(strokeWidth: 2),
-              ),
-            ),
-
-          // ── 검색 오류 ──
-          if (!_isLoading && _searched && _hasError)
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 12),
-              child: Text(
-                '검색 중 오류가 발생했습니다. 다시 시도해주세요.',
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.error,
-                ),
-              ),
-            ),
-
-          // ── 검색 결과 없음 ──
-          if (!_isLoading && _searched && !_hasError && _results.isEmpty)
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 12),
-              child: Text(
-                '검색 결과가 없습니다',
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-              ),
-            ),
-
-          // ── 검색 결과 목록 ──
-          if (!_isLoading && _results.isNotEmpty)
-            Card(
-              margin: const EdgeInsets.only(top: 6),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // 결과 헤더
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 10, 12, 6),
-                    child: Row(
-                      children: [
-                        Icon(
-                          Icons.place_rounded,
-                          size: 14,
-                          color: const Color(0xFF03C75A),
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          '네이버 검색 결과 ${_results.length}건',
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: theme.colorScheme.onSurfaceVariant,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                        const Spacer(),
-                        IconButton(
-                          icon: Icon(
-                            Icons.close_rounded,
-                            size: 16,
-                            color: theme.colorScheme.onSurfaceVariant,
-                          ),
-                          onPressed: _clear,
-                          padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints(),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const Divider(height: 1),
-
-                  // 결과 리스트 (최대 300px)
-                  ConstrainedBox(
-                    constraints: const BoxConstraints(maxHeight: 300),
-                    child: ListView.separated(
-                      shrinkWrap: true,
-                      padding: EdgeInsets.zero,
-                      itemCount: _results.length,
-                      separatorBuilder: (_, __) => const Divider(height: 1),
-                      itemBuilder:
-                          (_, i) => _NaverResultTile(
-                            place: _results[i],
-                            onAdd: () async {
-                              await widget.onAdd(_results[i]);
-                              _clear();
-                            },
-                          ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-}
-
-// ─── 네이버 검색 결과 타일 ───
-class _NaverResultTile extends StatelessWidget {
-  final NaverPlaceInfo place;
-  final VoidCallback onAdd;
-
-  const _NaverResultTile({required this.place, required this.onAdd});
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return ListTile(
-      contentPadding: const EdgeInsets.fromLTRB(16, 6, 8, 6),
-      title: Row(
-        children: [
-          Expanded(
-            child: Text(
-              place.title,
-              style: const TextStyle(
-                fontWeight: FontWeight.w600,
-                fontSize: 14,
-              ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-          if (place.placeLat != null) ...[
-            const SizedBox(width: 6),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-              decoration: BoxDecoration(
-                color: Colors.green[50],
-                borderRadius: BorderRadius.circular(6),
-                border: Border.all(color: Colors.green[200]!),
-              ),
-              child: Text(
-                '📍 좌표',
-                style: TextStyle(fontSize: 10, color: Colors.green[700]),
-              ),
-            ),
-          ],
-        ],
-      ),
-      subtitle: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (place.category.isNotEmpty) ...[
-            const SizedBox(height: 2),
-            Text(
-              place.category,
-              style: TextStyle(
-                fontSize: 11,
-                color: theme.colorScheme.primary,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ],
-          if (place.roadAddress.isNotEmpty) ...[
-            const SizedBox(height: 2),
-            Text(
-              place.roadAddress,
-              style: TextStyle(
-                fontSize: 11,
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ],
-        ],
-      ),
-      isThreeLine:
-          place.category.isNotEmpty && place.roadAddress.isNotEmpty,
-      trailing: TextButton(
-        onPressed: onAdd,
-        style: TextButton.styleFrom(
-          foregroundColor: const Color(0xFF03C75A),
-          padding: const EdgeInsets.symmetric(horizontal: 12),
-        ),
-        child: const Text(
-          '추가',
-          style: TextStyle(fontWeight: FontWeight.w600),
-        ),
-      ),
-    );
   }
 }
 
@@ -887,12 +512,12 @@ class _EmptyState extends StatelessWidget {
           const SizedBox(height: 20),
           Text(message, style: theme.textTheme.titleMedium),
           const SizedBox(height: 8),
-          Text('지도에서 장소를 추가해보세요', style: theme.textTheme.bodyMedium),
+          Text('네이버 검색 또는 지도에서 등록할 수 있어요', style: theme.textTheme.bodyMedium),
           const SizedBox(height: 20),
           ElevatedButton.icon(
             onPressed: onAdd,
             icon: const Icon(Icons.add_location_alt_rounded),
-            label: const Text('지도에서 등록'),
+            label: const Text('장소 등록'),
           ),
         ],
       ),
