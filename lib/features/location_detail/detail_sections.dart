@@ -408,12 +408,15 @@ class _CommentListSectionState extends State<CommentListSection> {
   late Future<List<LocationComment>> _future =
       CommentService.getByLocation(widget.locationId);
 
+  final _nameController = TextEditingController();
   final _textController = TextEditingController();
   bool _composing = false;
   bool _submitting = false;
+  String? _editingId;
 
   @override
   void dispose() {
+    _nameController.dispose();
     _textController.dispose();
     super.dispose();
   }
@@ -424,18 +427,56 @@ class _CommentListSectionState extends State<CommentListSection> {
     });
   }
 
+  void _startCompose() {
+    setState(() {
+      _editingId = null;
+      _nameController.clear();
+      _textController.clear();
+      _composing = true;
+    });
+  }
+
+  void _startEdit(LocationComment c) {
+    setState(() {
+      _editingId = c.id;
+      _nameController.text = c.userName;
+      _textController.text = c.body;
+      _composing = true;
+    });
+  }
+
+  void _cancelCompose() {
+    setState(() {
+      _editingId = null;
+      _nameController.clear();
+      _textController.clear();
+      _composing = false;
+    });
+  }
+
   Future<void> _submit() async {
     final body = _textController.text.trim();
     if (body.isEmpty) return;
+    final name = _nameController.text.trim();
     setState(() => _submitting = true);
     try {
-      await CommentService.add(
-        locationId: widget.locationId,
-        userName: '익명',
-        body: body,
-      );
+      if (_editingId != null) {
+        await CommentService.update(
+          _editingId!,
+          userName: name,
+          body: body,
+        );
+      } else {
+        await CommentService.add(
+          locationId: widget.locationId,
+          userName: name,
+          body: body,
+        );
+      }
+      _nameController.clear();
       _textController.clear();
       setState(() {
+        _editingId = null;
         _composing = false;
         _submitting = false;
         _future = CommentService.getByLocation(widget.locationId);
@@ -444,7 +485,7 @@ class _CommentListSectionState extends State<CommentListSection> {
       setState(() => _submitting = false);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('댓글 등록 실패: $e')),
+        SnackBar(content: Text('댓글 저장 실패: $e')),
       );
     }
   }
@@ -510,6 +551,7 @@ class _CommentListSectionState extends State<CommentListSection> {
                     comment: comments[i],
                     showDivider: i != comments.length - 1,
                     editMode: widget.editMode,
+                    onEdit: () => _startEdit(comments[i]),
                     onDelete: () => _delete(comments[i]),
                   ),
               const Divider(height: 1, color: OpusColors.gray100),
@@ -517,16 +559,15 @@ class _CommentListSectionState extends State<CommentListSection> {
                 padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
                 child: _composing
                     ? _Composer(
-                        controller: _textController,
+                        nameController: _nameController,
+                        bodyController: _textController,
                         submitting: _submitting,
-                        onCancel: () {
-                          _textController.clear();
-                          setState(() => _composing = false);
-                        },
+                        isEditing: _editingId != null,
+                        onCancel: _cancelCompose,
                         onSubmit: _submit,
                       )
                     : OutlinedButton.icon(
-                        onPressed: () => setState(() => _composing = true),
+                        onPressed: _startCompose,
                         style: OutlinedButton.styleFrom(
                           foregroundColor: OpusColors.purple700,
                           backgroundColor: Colors.white,
@@ -549,12 +590,14 @@ class _CommentTile extends StatelessWidget {
   final LocationComment comment;
   final bool showDivider;
   final bool editMode;
+  final VoidCallback onEdit;
   final VoidCallback onDelete;
 
   const _CommentTile({
     required this.comment,
     required this.showDivider,
     required this.editMode,
+    required this.onEdit,
     required this.onDelete,
   });
 
@@ -596,12 +639,15 @@ class _CommentTile extends StatelessWidget {
               children: [
                 Row(
                   children: [
-                    Text(
-                      comment.userName,
-                      style: GoogleFonts.notoSansKr(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: OpusColors.gray900,
+                    Flexible(
+                      child: Text(
+                        comment.userName,
+                        style: GoogleFonts.notoSansKr(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: OpusColors.gray900,
+                        ),
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                     const SizedBox(width: 8),
@@ -612,6 +658,16 @@ class _CommentTile extends StatelessWidget {
                         color: OpusColors.gray400,
                       ),
                     ),
+                    if (comment.isEdited) ...[
+                      const SizedBox(width: 6),
+                      Text(
+                        '(수정됨)',
+                        style: GoogleFonts.notoSansKr(
+                          fontSize: 11,
+                          color: OpusColors.gray400,
+                        ),
+                      ),
+                    ],
                   ],
                 ),
                 const SizedBox(height: 2),
@@ -626,7 +682,15 @@ class _CommentTile extends StatelessWidget {
               ],
             ),
           ),
-          if (editMode)
+          if (editMode) ...[
+            IconButton(
+              tooltip: '댓글 수정',
+              onPressed: onEdit,
+              icon: const Icon(Icons.edit_rounded, size: 16),
+              color: OpusColors.gray500,
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+            ),
             IconButton(
               tooltip: '댓글 삭제',
               onPressed: onDelete,
@@ -635,6 +699,7 @@ class _CommentTile extends StatelessWidget {
               padding: EdgeInsets.zero,
               constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
             ),
+          ],
         ],
       ),
     );
@@ -651,17 +716,26 @@ class _CommentTile extends StatelessWidget {
 }
 
 class _Composer extends StatelessWidget {
-  final TextEditingController controller;
+  final TextEditingController nameController;
+  final TextEditingController bodyController;
   final bool submitting;
+  final bool isEditing;
   final VoidCallback onCancel;
   final VoidCallback onSubmit;
 
   const _Composer({
-    required this.controller,
+    required this.nameController,
+    required this.bodyController,
     required this.submitting,
+    required this.isEditing,
     required this.onCancel,
     required this.onSubmit,
   });
+
+  OutlineInputBorder _border() => OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: OpusColors.gray200),
+      );
 
   @override
   Widget build(BuildContext context) {
@@ -669,8 +743,25 @@ class _Composer extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         TextField(
-          controller: controller,
-          autofocus: true,
+          controller: nameController,
+          maxLength: 20,
+          textInputAction: TextInputAction.next,
+          decoration: InputDecoration(
+            hintText: '이름 (선택 · 비우면 익명)',
+            filled: true,
+            fillColor: OpusColors.gray25,
+            counterText: '',
+            isDense: true,
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            border: _border(),
+            enabledBorder: _border(),
+          ),
+        ),
+        const SizedBox(height: 8),
+        TextField(
+          controller: bodyController,
+          autofocus: !isEditing,
           maxLines: 3,
           minLines: 2,
           maxLength: 500,
@@ -681,14 +772,8 @@ class _Composer extends StatelessWidget {
             fillColor: OpusColors.gray25,
             contentPadding:
                 const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: OpusColors.gray200),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: OpusColors.gray200),
-            ),
+            border: _border(),
+            enabledBorder: _border(),
           ),
         ),
         const SizedBox(height: 8),
@@ -709,8 +794,9 @@ class _Composer extends StatelessWidget {
                       child: CircularProgressIndicator(
                           strokeWidth: 2, color: Colors.white),
                     )
-                  : const Icon(Icons.send_rounded, size: 16),
-              label: const Text('등록'),
+                  : Icon(isEditing ? Icons.check_rounded : Icons.send_rounded,
+                      size: 16),
+              label: Text(isEditing ? '저장' : '등록'),
             ),
           ],
         ),

@@ -5,6 +5,7 @@ class LocationComment {
   final String userName;
   final String body;
   final DateTime createdAt;
+  final DateTime updatedAt;
 
   const LocationComment({
     required this.id,
@@ -12,15 +13,21 @@ class LocationComment {
     required this.userName,
     required this.body,
     required this.createdAt,
+    required this.updatedAt,
   });
 
+  bool get isEdited => updatedAt.isAfter(createdAt.add(const Duration(seconds: 1)));
+
   factory LocationComment.fromJson(Map<String, dynamic> json) {
+    final createdAt = DateTime.parse(json['created_at'] as String);
+    final updatedRaw = json['updated_at'] as String?;
     return LocationComment(
       id: json['id'] as String,
       locationId: json['location_id'] as String,
       userName: (json['user_name'] as String?) ?? '익명',
       body: (json['body'] as String?) ?? '',
-      createdAt: DateTime.parse(json['created_at'] as String),
+      createdAt: createdAt,
+      updatedAt: updatedRaw != null ? DateTime.parse(updatedRaw) : createdAt,
     );
   }
 }

@@ -85,9 +85,28 @@ class CommentService {
         .from(_table)
         .insert({
           'location_id': locationId,
-          'user_name': userName.isEmpty ? '익명' : userName,
+          'user_name': userName.trim().isEmpty ? '익명' : userName.trim(),
           'body': body,
         })
+        .select()
+        .single();
+    return LocationComment.fromJson(row);
+  }
+
+  static Future<LocationComment> update(
+    String id, {
+    String? userName,
+    String? body,
+  }) async {
+    final patch = <String, dynamic>{};
+    if (userName != null) {
+      patch['user_name'] = userName.trim().isEmpty ? '익명' : userName.trim();
+    }
+    if (body != null) patch['body'] = body;
+    final row = await _client
+        .from(_table)
+        .update(patch)
+        .eq('id', id)
         .select()
         .single();
     return LocationComment.fromJson(row);
