@@ -24,6 +24,10 @@ class MenuListSection extends StatefulWidget {
   /// 메뉴가 이미 있더라도 "네이버에서 자동 가져오기" 버튼을 노출한다.
   final bool naverLinked;
 
+  /// 연결된 네이버 POI URL. 자동 메뉴 가져오기에서 Local Search 단계를
+  /// 건너뛰고 곧장 해당 POI 의 메뉴를 조회하기 위해 사용한다.
+  final String? naverLink;
+
   const MenuListSection({
     super.key,
     required this.locationId,
@@ -32,6 +36,7 @@ class MenuListSection extends StatefulWidget {
     this.lng,
     required this.editMode,
     this.naverLinked = false,
+    this.naverLink,
   });
 
   @override
@@ -56,6 +61,7 @@ class _MenuListSectionState extends State<MenuListSection> {
         locationName: widget.locationName,
         lat: widget.lat,
         lng: widget.lng,
+        naverLink: widget.naverLink,
       );
       if (!mounted) return;
       setState(() => _fetchingNaver = false);

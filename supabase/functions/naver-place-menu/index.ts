@@ -13,8 +13,22 @@ interface NaverMenuItem {
 }
 
 function extractPlaceId(link: string): string | null {
-  const match = link.match(/place\/(\d+)/);
-  return match?.[1] ?? null;
+  if (!link) return null;
+  // 다양한 네이버 URL 형식 대응:
+  //   .../place/12345
+  //   .../restaurant/12345
+  //   ...?placeId=12345 / &id=12345
+  //   place.map.naver.com/12345
+  const patterns = [
+    /\/(?:place|restaurant|entry)\/(\d+)/,
+    /[?&](?:placeId|id|businessId)=(\d+)/,
+    /place\.map\.naver\.com\/(\d+)/,
+  ];
+  for (const re of patterns) {
+    const m = link.match(re);
+    if (m?.[1]) return m[1];
+  }
+  return null;
 }
 
 function stripHtml(str: string): string {
@@ -65,75 +79,86 @@ Deno.serve(async (req) => {
   const jsonHeaders = { ...corsHeaders, "Content-Type": "application/json" };
 
   try {
-    const { query, lat, lng } = await req.json();
-
-    if (!query || typeof query !== "string") {
-      return new Response(
-        JSON.stringify({ error: "query is required", menus: [] }),
-        { status: 400, headers: jsonHeaders }
-      );
-    }
+    const { query, lat, lng, naverLink, placeId: placeIdParam } =
+      await req.json();
 
     const clientId = Deno.env.get("NAVER_CLIENT_ID");
     const clientSecret = Deno.env.get("NAVER_CLIENT_SECRET");
 
-    if (!clientId || !clientSecret) {
-      return new Response(
-        JSON.stringify({ error: "Naver credentials not configured", menus: [] }),
-        { status: 500, headers: jsonHeaders }
-      );
-    }
+    // 클라이언트가 이미 연결된 POI 의 placeId 또는 naver_link 를 넘기면
+    // Local Search 를 건너뛰고 곧장 상세 API 를 호출한다.
+    let placeId: string | null =
+      (typeof placeIdParam === "string" && placeIdParam.match(/^\d+$/)
+        ? placeIdParam
+        : null) ??
+      (typeof naverLink === "string" ? extractPlaceId(naverLink) : null);
 
-    // ── Step 1: 네이버 Local Search로 Place ID 추출 ──────────────────
-    const searchUrl =
-      `https://openapi.naver.com/v1/search/local.json` +
-      `?query=${encodeURIComponent("거제 " + query)}&display=5&sort=comment`;
+    if (!placeId) {
+      if (!query || typeof query !== "string") {
+        return new Response(
+          JSON.stringify({ error: "query or placeId is required", menus: [] }),
+          { status: 400, headers: jsonHeaders }
+        );
+      }
 
-    const searchRes = await fetch(searchUrl, {
-      headers: {
-        "X-Naver-Client-Id": clientId,
-        "X-Naver-Client-Secret": clientSecret,
-      },
-    });
+      if (!clientId || !clientSecret) {
+        return new Response(
+          JSON.stringify({
+            error: "Naver credentials not configured",
+            menus: [],
+          }),
+          { status: 500, headers: jsonHeaders }
+        );
+      }
 
-    if (!searchRes.ok) {
-      return new Response(
-        JSON.stringify({ menus: [], placeId: null }),
-        { headers: jsonHeaders }
-      );
-    }
+      // ── Step 1: 네이버 Local Search로 Place ID 추출 ──────────────────
+      const searchUrl =
+        `https://openapi.naver.com/v1/search/local.json` +
+        `?query=${encodeURIComponent("거제 " + query)}&display=5&sort=comment`;
 
-    const searchData = await searchRes.json();
-    const items: any[] = searchData?.items ?? [];
+      const searchRes = await fetch(searchUrl, {
+        headers: {
+          "X-Naver-Client-Id": clientId,
+          "X-Naver-Client-Secret": clientSecret,
+        },
+      });
 
-    if (items.length === 0) {
-      return new Response(
-        JSON.stringify({ menus: [], placeId: null }),
-        { headers: jsonHeaders }
-      );
-    }
+      if (!searchRes.ok) {
+        return new Response(JSON.stringify({ menus: [], placeId: null }), {
+          headers: jsonHeaders,
+        });
+      }
 
-    // 좌표가 있으면 가장 가까운 결과, 아니면 첫 번째
-    let bestItem = items[0];
-    if (lat != null && lng != null && items.length > 1) {
-      let minDist = Infinity;
-      for (const item of items) {
-        const iLat = parseInt(item.mapy ?? "0") / 1e7;
-        const iLng = parseInt(item.mapx ?? "0") / 1e7;
-        const dist = Math.pow(iLat - lat, 2) + Math.pow(iLng - lng, 2);
-        if (dist < minDist) {
-          minDist = dist;
-          bestItem = item;
+      const searchData = await searchRes.json();
+      const items: any[] = searchData?.items ?? [];
+
+      if (items.length === 0) {
+        return new Response(JSON.stringify({ menus: [], placeId: null }), {
+          headers: jsonHeaders,
+        });
+      }
+
+      // 좌표가 있으면 가장 가까운 결과, 아니면 첫 번째
+      let bestItem = items[0];
+      if (lat != null && lng != null && items.length > 1) {
+        let minDist = Infinity;
+        for (const item of items) {
+          const iLat = parseInt(item.mapy ?? "0") / 1e7;
+          const iLng = parseInt(item.mapx ?? "0") / 1e7;
+          const dist = Math.pow(iLat - lat, 2) + Math.pow(iLng - lng, 2);
+          if (dist < minDist) {
+            minDist = dist;
+            bestItem = item;
+          }
         }
       }
-    }
 
-    const placeId = extractPlaceId(bestItem?.link ?? "");
-    if (!placeId) {
-      return new Response(
-        JSON.stringify({ menus: [], placeId: null }),
-        { headers: jsonHeaders }
-      );
+      placeId = extractPlaceId(bestItem?.link ?? "");
+      if (!placeId) {
+        return new Response(JSON.stringify({ menus: [], placeId: null }), {
+          headers: jsonHeaders,
+        });
+      }
     }
 
     // ── Step 2: 네이버 Place 상세 API로 메뉴 조회 ───────────────────
