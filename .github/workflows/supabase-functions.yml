@@ -13,8 +13,9 @@ name: Supabase Edge Functions 배포
 #   · SUPABASE_URL          — 기존 secret (project ref 추출용)
 #
 # Naver API 키 (NAVER_CLIENT_ID / NAVER_CLIENT_SECRET) 는 함수가 호출 시 사용한다.
-# 이 워크플로는 함수 코드만 배포하며, 함수의 환경 변수는 별도로 관리한다.
-# 한 번이라도 다음 명령으로 등록해 둔 적이 있다면 그대로 유지된다.
+# GitHub repository secret 으로 NAVER_CLIENT_ID / NAVER_CLIENT_SECRET 을 등록해두면
+# 배포 직전에 `supabase secrets set` 으로 함수 환경에 자동 반영한다.
+# 수동 등록 명령 예시:
 #   supabase secrets set NAVER_CLIENT_ID=... NAVER_CLIENT_SECRET=... --project-ref <REF>
 
 on:
@@ -82,6 +83,30 @@ jobs:
           fi
           echo "PROJECT_REF=$ref" >> "$GITHUB_ENV"
           echo "🟢 project ref: $ref"
+
+      - name: Naver API secret 동기화
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          NAVER_CLIENT_ID: ${{ secrets.NAVER_CLIENT_ID }}
+          NAVER_CLIENT_SECRET: ${{ secrets.NAVER_CLIENT_SECRET }}
+        run: |
+          set -euo pipefail
+
+          # GitHub repo secret 에 둘 다 있어야 동기화한다. 한쪽만 누락이면
+          # 의도치 않은 덮어쓰기를 막기 위해 건너뛰고 경고만 남긴다.
+          if [ -z "${NAVER_CLIENT_ID:-}" ] || [ -z "${NAVER_CLIENT_SECRET:-}" ]; then
+            echo "::warning::NAVER_CLIENT_ID / NAVER_CLIENT_SECRET repo secret 이 없어"\
+              "함수 환경 변수 동기화를 건너뜁니다. 함수가 500 'Naver API credentials not configured'"\
+              "를 반환한다면 GitHub repository secret 에 두 값을 등록 후 재실행하세요."
+            exit 0
+          fi
+
+          echo "🔐 Supabase 함수 secret 동기화 중..."
+          supabase secrets set \
+            "NAVER_CLIENT_ID=$NAVER_CLIENT_ID" \
+            "NAVER_CLIENT_SECRET=$NAVER_CLIENT_SECRET" \
+            --project-ref "$PROJECT_REF"
+          echo "✅ Naver 자격증명 동기화 완료"
 
       - name: 함수 배포
         env:
