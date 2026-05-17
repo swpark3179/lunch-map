@@ -1,0 +1,118 @@
+name: Supabase Edge Functions 배포
+
+# supabase/functions/<name>/index.ts 를 Supabase 에 배포한다.
+#
+# 트리거
+#   1) 수동 실행: GitHub → Actions → "Supabase Edge Functions 배포"
+#        · function_name 으로 단일 함수 또는 전체 배포 선택
+#   2) main 브랜치에서 supabase/functions/** 변경 시 자동 배포
+#
+# 필요한 Secret
+#   · SUPABASE_ACCESS_TOKEN — Supabase Personal Access Token
+#       생성: https://supabase.com/dashboard/account/tokens
+#   · SUPABASE_URL          — 기존 secret (project ref 추출용)
+#
+# Naver API 키 (NAVER_CLIENT_ID / NAVER_CLIENT_SECRET) 는 함수가 호출 시 사용한다.
+# 이 워크플로는 함수 코드만 배포하며, 함수의 환경 변수는 별도로 관리한다.
+# 한 번이라도 다음 명령으로 등록해 둔 적이 있다면 그대로 유지된다.
+#   supabase secrets set NAVER_CLIENT_ID=... NAVER_CLIENT_SECRET=... --project-ref <REF>
+
+on:
+  workflow_dispatch:
+    inputs:
+      function_name:
+        description: '배포할 함수 (전체 = 모든 supabase/functions/* )'
+        required: false
+        type: choice
+        default: '(전체)'
+        options:
+          - '(전체)'
+          - 'naver-search'
+          - 'naver-place-menu'
+  push:
+    branches: [main]
+    paths:
+      - 'supabase/functions/**'
+      - '.github/workflows/supabase-functions.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: 배포
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: 체크아웃
+        uses: actions/checkout@v5
+
+      - name: Supabase CLI 설치
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: 환경 확인 및 project ref 추출
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${SUPABASE_ACCESS_TOKEN:-}" ]; then
+            {
+              echo "::error::SUPABASE_ACCESS_TOKEN secret 이 설정되어 있지 않습니다."
+              echo "Supabase 대시보드 → Account → Access Tokens 에서 발급 후"
+              echo "GitHub repository secret 으로 SUPABASE_ACCESS_TOKEN 을 추가해주세요."
+              echo "  생성 페이지: https://supabase.com/dashboard/account/tokens"
+            } >&2
+            exit 1
+          fi
+
+          if [ -z "${SUPABASE_URL:-}" ]; then
+            echo "::error::SUPABASE_URL secret 이 설정되어 있지 않습니다."
+            exit 1
+          fi
+
+          ref=$(printf '%s' "$SUPABASE_URL" \
+            | sed -E 's#^https?://([^./]+)\.supabase\.(co|in).*$#\1#')
+          if [ -z "$ref" ] || [ "$ref" = "$SUPABASE_URL" ]; then
+            echo "::error::SUPABASE_URL 에서 project ref 추출 실패: $SUPABASE_URL"
+            exit 1
+          fi
+          echo "PROJECT_REF=$ref" >> "$GITHUB_ENV"
+          echo "🟢 project ref: $ref"
+
+      - name: 함수 배포
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          FUNCTION_NAME: ${{ inputs.function_name }}
+        run: |
+          set -euo pipefail
+
+          deploy_one() {
+            local fn="$1"
+            if [ ! -f "supabase/functions/${fn}/index.ts" ]; then
+              echo "::error::supabase/functions/${fn}/index.ts 를 찾을 수 없습니다."
+              return 1
+            fi
+            echo "📦 배포: $fn"
+            supabase functions deploy "$fn" --project-ref "$PROJECT_REF"
+          }
+
+          if [ -n "${FUNCTION_NAME:-}" ] && [ "$FUNCTION_NAME" != "(전체)" ]; then
+            deploy_one "$FUNCTION_NAME"
+          else
+            shopt -s nullglob
+            any=0
+            for fn_dir in supabase/functions/*/; do
+              [ -d "$fn_dir" ] || continue
+              deploy_one "$(basename "$fn_dir")"
+              any=1
+            done
+            if [ "$any" -eq 0 ]; then
+              echo "::error::supabase/functions/ 아래에 배포할 함수가 없습니다."
+              exit 1
+            fi
+          fi
+          echo "✅ 배포 완료"
