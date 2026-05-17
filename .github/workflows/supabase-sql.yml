@@ -85,18 +85,18 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
         run: |
           set -euo pipefail
-          # secret 값에 공백/줄바꿈 등이 섞여 들어갔는지 확인하기 위한 진단용 스텝.
-          # 비밀번호 노출을 피하려고 길이와 앞/끝 일부만 출력한다.
+          # secret 진단: 평문은 노출하지 않고 길이와 단방향 fingerprint(SHA-256 앞 8자)만 출력.
+          # 같은 값은 같은 fp 를 갖지만 fp 로부터 원본을 복원할 수는 없다.
+          fp() {
+            printf '%s' "$1" | sha256sum | head -c 8
+          }
           check() {
             local name="$1" val="$2"
             if [ -z "$val" ]; then
               echo "  $name: (empty)"
               return
             fi
-            local len=${#val}
-            local head_part="${val:0:12}"
-            local tail_part="${val: -6}"
-            echo "  $name: len=$len head='${head_part}...' tail='...${tail_part}'"
+            echo "  $name: len=${#val} fp=$(fp "$val")"
             # 앞뒤 공백/줄바꿈 검출.
             case "$val" in
               ' '*|$'\t'*|$'\n'*) echo "    ⚠️  앞쪽에 공백/탭/줄바꿈이 있습니다." ;;
@@ -104,7 +104,7 @@ jobs:
             case "$val" in
               *' '|*$'\t'|*$'\n') echo "    ⚠️  뒤쪽에 공백/탭/줄바꿈이 있습니다." ;;
             esac
-            # 플레이스홀더가 그대로 남아있는지 검사.
+            # 플레이스홀더 잔존 검사.
             case "$val" in
               *'[YOUR-PASSWORD]'*) echo "    ⚠️  '[YOUR-PASSWORD]' 플레이스홀더가 치환되지 않았습니다." ;;
             esac
@@ -113,6 +113,29 @@ jobs:
           check "SUPABASE_DB_URL"      "${SUPABASE_DB_URL:-}"
           check "SUPABASE_DB_PASSWORD" "${SUPABASE_DB_PASSWORD:-}"
           check "SUPABASE_URL"         "${SUPABASE_URL:-}"
+
+          # SUPABASE_DB_URL 에 내장된 비밀번호와 별도 SUPABASE_DB_PASSWORD secret 의 일치 여부 확인.
+          # 한쪽이 reset 이전 옛 값으로 남아있는지 잡아내는 게 목적.
+          if [ -n "${SUPABASE_DB_URL:-}" ]; then
+            embedded_pw=$(printf '%s' "$SUPABASE_DB_URL" \
+              | sed -nE 's|^[a-z]+://[^:/@]+:([^@]*)@.*$|\1|p')
+            if [ -n "$embedded_pw" ]; then
+              # 이후 로그에 평문이 새지 않도록 즉시 마스킹.
+              echo "::add-mask::$embedded_pw"
+              echo "  SUPABASE_DB_URL 내장 PW: len=${#embedded_pw} fp=$(fp "$embedded_pw")"
+              if [ -n "${SUPABASE_DB_PASSWORD:-}" ]; then
+                if [ "$embedded_pw" = "$SUPABASE_DB_PASSWORD" ]; then
+                  echo "  ✅ URL 내장 PW 와 SUPABASE_DB_PASSWORD 가 동일합니다."
+                else
+                  echo "  ⚠️  URL 내장 PW 와 SUPABASE_DB_PASSWORD 가 다릅니다."
+                  echo "     (한쪽이 reset 이전의 옛 비밀번호일 가능성이 큽니다.)"
+                fi
+              fi
+            else
+              echo "  ⚠️  SUPABASE_DB_URL 에서 비밀번호를 추출하지 못했습니다."
+              echo "     (URL 형식이 postgresql://USER:PASSWORD@HOST:... 가 맞는지 확인)"
+            fi
+          fi
 
       - name: DB 접속 URL 구성
         env:
