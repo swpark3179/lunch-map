@@ -1,0 +1,148 @@
+name: Supabase SQL 실행
+
+# supabase/ 폴더의 SQL 파일을 골라 Supabase 데이터베이스에 실행한다.
+# 마이그레이션 적용(DB 스키마 갱신) 또는 임시 패치 용도.
+#
+# 사용법
+#   GitHub → Actions → "Supabase SQL 실행" → Run workflow
+#     · sql_file: 드롭다운에서 supabase/ 하위 파일 선택
+#     · raw_sql:  직접 SQL 텍스트 입력 (비어있지 않으면 sql_file 보다 우선)
+#
+# 필요한 Secret (둘 중 하나)
+#   1) SUPABASE_DB_URL  : 전체 postgres 접속 문자열 (가장 깔끔)
+#        postgresql://postgres:<PW>@db.<PROJECT_REF>.supabase.co:5432/postgres
+#        (Supabase 대시보드 → Project Settings → Database → Connection string)
+#   2) SUPABASE_DB_PASSWORD + SUPABASE_URL
+#        SUPABASE_URL 에서 project ref 를 추출해 위 형식의 URL 을 구성한다.
+#
+# 주의
+#   · SUPABASE_ANON_KEY 만으로는 DDL(ALTER TABLE 등) 실행이 불가능합니다.
+#   · 기존 SUPABASE_URL secret 이 우연히 postgres:// 로 시작하는 접속 문자열이라면
+#     그대로 DB_URL 로 사용합니다.
+
+on:
+  workflow_dispatch:
+    inputs:
+      sql_file:
+        description: 'supabase 폴더 내 실행할 SQL 파일 (raw_sql 비어있을 때 사용)'
+        required: false
+        type: choice
+        default: 'migrations/005_naver_link.sql'
+        options:
+          - 'migrations/001_create_locations.sql'
+          - 'migrations/002_menus_reviews.sql'
+          - 'migrations/003_location_comments.sql'
+          - 'migrations/004_location_comments_updated_at.sql'
+          - 'migrations/005_naver_link.sql'
+          - '(raw_sql 사용)'
+      raw_sql:
+        description: '직접 입력할 SQL (비어있지 않으면 sql_file 보다 우선)'
+        required: false
+        type: string
+        default: ''
+
+permissions:
+  contents: read
+
+jobs:
+  apply:
+    name: SQL 적용
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: 체크아웃
+        uses: actions/checkout@v5
+
+      - name: 실행할 SQL 본문 준비
+        env:
+          RAW_SQL: ${{ inputs.raw_sql }}
+          SQL_FILE: ${{ inputs.sql_file }}
+        run: |
+          set -euo pipefail
+          if [ -n "${RAW_SQL//[[:space:]]/}" ]; then
+            printf '%s\n' "$RAW_SQL" > /tmp/exec.sql
+            echo "🟢 raw_sql 입력을 실행합니다."
+          elif [ -n "${SQL_FILE:-}" ] && [ "$SQL_FILE" != "(raw_sql 사용)" ]; then
+            FILE_PATH="supabase/${SQL_FILE}"
+            if [ ! -f "$FILE_PATH" ]; then
+              echo "::error::파일을 찾을 수 없습니다: $FILE_PATH"
+              exit 1
+            fi
+            cp "$FILE_PATH" /tmp/exec.sql
+            echo "🟢 파일 실행: $FILE_PATH"
+          else
+            echo "::error::sql_file 또는 raw_sql 중 하나를 지정해주세요."
+            exit 1
+          fi
+          echo "------- 실행할 SQL 미리보기 (최대 40줄) -------"
+          head -n 40 /tmp/exec.sql
+          echo "------------------------------------------------"
+
+      - name: DB 접속 URL 구성
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+        run: |
+          set -euo pipefail
+
+          DATABASE_URL=""
+
+          # 1) 명시적인 DB URL secret 이 있으면 그대로 사용.
+          if [ -n "${SUPABASE_DB_URL:-}" ]; then
+            DATABASE_URL="$SUPABASE_DB_URL"
+            echo "🟢 SUPABASE_DB_URL secret 을 사용합니다."
+          # 2) SUPABASE_URL 자체가 postgres 접속 문자열이라면 사용.
+          elif [[ "${SUPABASE_URL:-}" == postgres://* || "${SUPABASE_URL:-}" == postgresql://* ]]; then
+            DATABASE_URL="$SUPABASE_URL"
+            echo "🟢 SUPABASE_URL 이 postgres 접속 문자열이라 그대로 사용합니다."
+          # 3) SUPABASE_URL(REST) + SUPABASE_DB_PASSWORD 조합으로 구성.
+          elif [ -n "${SUPABASE_URL:-}" ] && [ -n "${SUPABASE_DB_PASSWORD:-}" ]; then
+            ref=$(printf '%s' "$SUPABASE_URL" \
+              | sed -E 's#^https?://([^./]+)\.supabase\.(co|in).*$#\1#')
+            if [ -z "$ref" ] || [ "$ref" = "$SUPABASE_URL" ]; then
+              echo "::error::SUPABASE_URL 에서 project ref 를 추출하지 못했습니다: $SUPABASE_URL"
+              exit 1
+            fi
+            DATABASE_URL="postgresql://postgres:${SUPABASE_DB_PASSWORD}@db.${ref}.supabase.co:5432/postgres?sslmode=require"
+            echo "🟢 SUPABASE_URL(ref=$ref) + SUPABASE_DB_PASSWORD 로 접속 URL 을 구성했습니다."
+          else
+            {
+              echo "::error::DB 접속을 위한 secret 이 부족합니다."
+              echo ""
+              echo "SUPABASE_ANON_KEY 로는 DDL(ALTER TABLE 등)을 실행할 수 없습니다."
+              echo "아래 둘 중 하나를 GitHub repository secret 으로 추가해주세요."
+              echo ""
+              echo "  1) SUPABASE_DB_URL (권장)"
+              echo "     Supabase 대시보드 → Project Settings → Database → Connection string"
+              echo "     예) postgresql://postgres:<PW>@db.<REF>.supabase.co:5432/postgres"
+              echo ""
+              echo "  2) SUPABASE_DB_PASSWORD"
+              echo "     단순 비밀번호만 등록하면 SUPABASE_URL 에서 host 를 자동 추출합니다."
+            } >&2
+            exit 1
+          fi
+
+          # 로그 마스킹 — DB URL/비번이 출력에 노출되지 않도록.
+          echo "::add-mask::$DATABASE_URL"
+          if [ -n "${SUPABASE_DB_PASSWORD:-}" ]; then
+            echo "::add-mask::$SUPABASE_DB_PASSWORD"
+          fi
+          echo "DATABASE_URL=$DATABASE_URL" >> "$GITHUB_ENV"
+          echo "🟢 DB 접속 URL 준비 완료."
+
+      - name: psql 설치
+        run: |
+          set -euo pipefail
+          sudo apt-get update -y >/dev/null
+          sudo apt-get install -y --no-install-recommends postgresql-client >/dev/null
+          psql --version
+
+      - name: SQL 실행
+        run: |
+          set -euo pipefail
+          psql "$DATABASE_URL" \
+            --set ON_ERROR_STOP=1 \
+            --single-transaction \
+            -f /tmp/exec.sql
+          echo "✅ SQL 적용 완료"
