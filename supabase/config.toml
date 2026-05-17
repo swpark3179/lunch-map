@@ -1,0 +1,12 @@
+# Supabase 프로젝트 설정.
+#
+# naver-search / naver-place-menu Edge Function 은 서버측 NAVER_CLIENT_ID/
+# SECRET 으로만 동작하는 공개 프록시다. 클라이언트가 anon key 만 들고
+# 호출해도 되도록 JWT 검증을 끈다. (기본값 true 면 게이트웨이가
+# UNAUTHORIZED_INVALID_JWT_FORMAT 를 반환하는 문제 해결)
+
+[functions.naver-search]
+verify_jwt = false
+
+[functions.naver-place-menu]
+verify_jwt = false

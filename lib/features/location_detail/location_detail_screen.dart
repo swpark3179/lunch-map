@@ -322,6 +322,7 @@ class _LocationDetailScreenState extends ConsumerState<LocationDetailScreen> {
             lng: location.lng,
             editMode: _editMode,
             naverLinked: location.naverLinked,
+            naverLink: location.naverLink,
           ),
           const SizedBox(height: 16),
           CommentListSection(
